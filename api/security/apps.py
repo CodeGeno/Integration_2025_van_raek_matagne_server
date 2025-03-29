@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class SchoolmanagementConfig(AppConfig):
+class SecurityConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'schoolManagement'
+    name = 'security'
