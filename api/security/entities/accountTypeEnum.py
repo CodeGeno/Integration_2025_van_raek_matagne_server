@@ -1,8 +1,7 @@
 from enum import Enum
 
-class AccountTypeEnum(Enum):
+class EmployeRoleEnum(Enum):
     PROFESSOR = "Professeur"
-    STUDENT = "Etudiant"
     ADMINISTRATOR = "Administrateur"
     EDUCATOR = "Educateur"
 

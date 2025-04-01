@@ -1,6 +1,8 @@
 from django.urls import path
-from .views import AccountCreationEndpoint  # Importez votre vue
+from .views import StudentCreationEndpoint, EmployeeCreationEndpoint,Login  # Importez votre vue
 
 urlpatterns = [
-    path('create-account/', AccountCreationEndpoint.as_view(), name='create-account'),  # Endpoint pour créer un compte
+    path('create-student/', StudentCreationEndpoint.as_view(), name='create-student'),
+    path('create-employee/', EmployeeCreationEndpoint.as_view(), name='create-employee'),
+    path('login/', Login.as_view(), name='login'),
 ]
