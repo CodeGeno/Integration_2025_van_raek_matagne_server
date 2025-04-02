@@ -118,10 +118,12 @@ class Account(models.Model):
         return f"{gender_digit}{birth_str}{last_three}"
 
     def save(self, *args, **kwargs):
+       
         if not self.pk:  # Nouveau compte
             if isinstance(self, (Instructor, Educator)):
                 self.employeeEmail = self.generate_email()
             if isinstance(self, Student):
+                print("We are here")
                 self.studentEmail = self.generate_email()
         super().save(*args, **kwargs)
 
@@ -161,4 +163,18 @@ class Educator(Account):
             self.matricule = self.generate_matricule()
         super().save(*args, **kwargs)
 
+class Administrator(Account):
+    matricule = models.CharField(
+        max_length=10,
+        validators=[
+            RegexValidator(
+                regex='^[12]\d{8}$',
+                message='Format matricule invalide'
+            )
+        ]
+    )
+    def save(self, *args, **kwargs):
+        if not self.matricule:
+            self.matricule = self.generate_matricule()
+        super().save(*args, **kwargs)
 
