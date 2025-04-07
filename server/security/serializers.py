@@ -24,7 +24,7 @@ class StudentSerializer(serializers.ModelSerializer):
     address = AddressSerializer()
     class Meta:
         model = Student
-        exclude = ["employeeEmail", "employee_role"]
+        exclude = ["employee_email", "employee_role"]
 
 class AdministratorSerializer(serializers.ModelSerializer):
     class Meta:

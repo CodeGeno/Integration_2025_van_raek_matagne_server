@@ -1,6 +1,5 @@
 # api/security/views.py
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 import string
 import secrets
@@ -17,43 +16,13 @@ from django.conf import settings
 from .models import Account
 import json
 from .serializers import StudentSerializer
+from api.models import ApiResponseClass
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Q
 
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
-
-class ApiResponseClass:
-    @staticmethod
-    def success(message, data=None):
-        response = {
-            "success": True,
-            "message": message,
-            "data": data
-        }
-        return Response(response, status=status.HTTP_200_OK)
-
-    @staticmethod
-    def created(message, data=None):
-        response = {
-            "success": True,
-            "message": message,
-            "data": data
-        }
-        return Response(response, status=status.HTTP_201_CREATED)
-
-    @staticmethod
-    def error(message, status_code=status.HTTP_400_BAD_REQUEST):
-        response = {
-            "success": False,
-            "message": message
-        }
-        return Response(response, status=status_code)
-
-    @staticmethod
-    def unauthorized(message="Accès non autorisé"):
-        response = {
-            "success": False,
-            "message": message
-        }
-        return Response(response, status=status.HTTP_401_UNAUTHORIZED)
 
 class StudentCreationEndpoint(APIView):
     
@@ -182,3 +151,30 @@ class CreateStudent(APIView):
             
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class StudentPagination(PageNumberPagination):
+    page_size = 10  # Nombre d'étudiants par page
+
+@api_view(['GET'])
+def StudentList(request):
+    if request.method == 'GET':
+        # Récupérer tous les étudiants
+        students = Student.objects.all()
+
+        # Recherche par nom ou email
+        search_query = request.query_params.get('search', None)
+        if search_query:
+            students = students.filter(
+                Q(contact_details__first_name__icontains=search_query) |
+                Q(contact_details__last_name__icontains=search_query) |
+                Q(studentEmail__icontains=search_query)
+            )
+  
+        # Pagination
+        paginator = StudentPagination()
+        paginated_students = paginator.paginate_queryset(students, request)
+
+        serializer = StudentSerializer(paginated_students, many=True)
+        print(serializer.data)
+        return ApiResponseClass.success("Liste des étudiants récupérée avec succès", serializer.data)  # Retourner la réponse paginée

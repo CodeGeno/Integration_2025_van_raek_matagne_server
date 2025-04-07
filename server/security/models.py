@@ -50,11 +50,13 @@ class Address(models.Model):
     zip_code = models.CharField(max_length=10)
     country = models.CharField(max_length=50)
     number = models.CharField(max_length=10)   
+    complement = models.CharField(max_length=50, null=True, blank=True)
+    state = models.CharField(max_length=50)
 
 class Account(models.Model):
     account_id = models.AutoField(primary_key=True)
-    employeeEmail = models.EmailField(unique=True, null=True, blank=True)
-    studentEmail = models.EmailField(unique=True, null=True, blank=True)
+    employee_email = models.EmailField(unique=True, null=True, blank=True)
+    student_email = models.EmailField(unique=True, null=True, blank=True)
     password = models.CharField(max_length=128)
     employee_role = models.CharField(
         max_length=20,

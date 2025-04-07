@@ -1,0 +1,70 @@
+# Fichiers bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Environnements virtuels
+venv_integration/
+venv_development/
+venv_production/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# Tests et couverture
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Documentation
+docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs et éditeurs
+.idea/
+.vscode/
+*.swp
+*.swo
+.vs/
+.spyderproject
+.spyproject
+.ropeproject
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db
+
+# Fichiers temporaires
+*.log
+*.pot
+*.pyc
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Dossiers spécifiques au projet
+/media
+/static
+/fixtures
+
+# MyPy
+.mypy_cache/
+
+# Pipenv
+Pipfile.lock
+
+# Poetry
+poetry.lock
