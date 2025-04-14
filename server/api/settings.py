@@ -137,6 +137,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',  # Only JSON renderer is enabled now
         # 'rest_framework.renderers.BrowsableAPIRenderer',  # Comment or remove this line
     ),
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.StandardResultsSetPagination'
 }
 
 CORS_ALLOWED_ORIGINS = [

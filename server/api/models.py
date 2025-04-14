@@ -35,3 +35,14 @@ class ApiResponseClass:
             "message": message
         }
         return Response(response, status=status.HTTP_401_UNAUTHORIZED)
+    
+    @staticmethod
+    def succesOverview(message,data=None,current_page=None,total_pages=None):
+        response = {
+            "success": True,
+            "message": message,
+            "data": data,
+            "current_page": current_page,
+            "total_pages": total_pages
+        }
+        return Response(response, status=status.HTTP_200_OK)

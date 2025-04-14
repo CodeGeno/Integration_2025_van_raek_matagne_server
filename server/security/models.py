@@ -5,7 +5,6 @@ from datetime import datetime
 from django.db.models import Q
 import random
 
-
 class ContactDetails(models.Model):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -85,8 +84,7 @@ class Account(models.Model):
                 
             counter += 1
             email = f"{base}{counter}{domain}"          
-        return email
-    
+        return email 
     def generate_matricule(self):
         gender_digit = '1' if self.contact_details.gender == GenderEnum.MALE.value else '2'
         match self.contact_details.gender:
@@ -118,7 +116,6 @@ class Account(models.Model):
                 break
             counter += 1
         return f"{gender_digit}{birth_str}{last_three}"
-
     def save(self, *args, **kwargs):
        
         if not self.pk:  # Nouveau compte

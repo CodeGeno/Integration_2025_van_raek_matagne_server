@@ -50,7 +50,6 @@ def has_employee_role(*allowed_roles):
                 return func(self, request, *args, **kwargs)
                 
             except Exception as e:
-                return JsonResponse({"error": str(e)}, status=401)
-                
+                return JsonResponse({"error": str(e)}, status=401)              
         return wrapper
     return decorator
