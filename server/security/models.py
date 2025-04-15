@@ -6,10 +6,11 @@ from django.db.models import Q
 import random
 
 class ContactDetails(models.Model):
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
-    phone_number = models.CharField(max_length=20)
-    birth_date = models.DateField()
+    contactDetailsId = models.AutoField(primary_key=True)
+    firstName = models.CharField(max_length=50)
+    lastName = models.CharField(max_length=50)
+    phoneNumber = models.CharField(max_length=20)
+    birthDate = models.DateField()
     gender = models.CharField(
         max_length=10,
         choices=[(gender.value, gender.name) for gender in GenderEnum],
@@ -28,15 +29,15 @@ class ContactDetails(models.Model):
     
     def generate_identifier(self):
         # Récupérer le dernier identifiant utilisé
-        last_contact = ContactDetails.objects.order_by('-identifier').first()
+        lastContact = ContactDetails.objects.order_by('-identifier').first()
         
-        if not last_contact or not last_contact.identifier:
+        if not lastContact or not lastContact.identifier:
             return "100000"
             
-        last_number = int(last_contact.identifier)
-        next_number = last_number + 1
+        lastNumber = int(lastContact.identifier)
+        nextNumber = lastNumber + 1
         
-        return str(next_number)
+        return str(nextNumber)
 
     def save(self, *args, **kwargs):
         if not self.identifier:
@@ -44,109 +45,90 @@ class ContactDetails(models.Model):
         super().save(*args, **kwargs)
 
 class Address(models.Model):
+    addressId = models.AutoField(primary_key=True)
     street = models.CharField(max_length=100)
     city = models.CharField(max_length=50)
-    zip_code = models.CharField(max_length=10)
+    zipCode = models.CharField(max_length=10)
     country = models.CharField(max_length=50)
     number = models.CharField(max_length=10)   
     complement = models.CharField(max_length=50, null=True, blank=True)
     state = models.CharField(max_length=50)
 
 class Account(models.Model):
-    account_id = models.AutoField(primary_key=True)
-    employee_email = models.EmailField(unique=True, null=True, blank=True)
-    student_email = models.EmailField(unique=True, null=True, blank=True)
+    accountId = models.AutoField(primary_key=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+   
     password = models.CharField(max_length=128)
-    employee_role = models.CharField(
-        max_length=20,
-        choices=[(employe_role.value, employe_role.name) for employe_role in EmployeRoleEnum],
-        default=EmployeRoleEnum.PROFESSOR.value 
-    )
-    contact_details = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)
+    
+    contactDetails = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)
     address=models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
 
-    def generate_email(self):
-        base = f"{self.contact_details.first_name.lower()}.{self.contact_details.last_name.lower()}"
+    def generateEmail(self):
+        base = f"{self.contactDetails.firstName.lower()}.{self.contactDetails.lastName.lower()}"
         domain = "@student.efpl.be" if isinstance(self, Student) else "@efpl.be"
-        
         # Vérifier si l'email existe déjà
         counter = 1
         email = f"{base}{domain}"
-        
-        while True:
-            if isinstance(self, Student):
-                exists = Account.objects.filter(studentEmail=email).exists()
-            else:
-                exists = Account.objects.filter(employeeEmail=email).exists()
-                
-            if not exists:
-                break
-                
-            counter += 1
-            email = f"{base}{counter}{domain}"          
+
+
+        lastAccount = Account.objects.filter(
+            email__startswith=base
+        ).order_by('-email').first()
+        if lastAccount:
+            counter = int(lastAccount.email.split(base)[1].split(domain)[0]) + 1
+        else:
+            counter = 1
+
+        email = f"{base}{counter}{domain}"          
         return email 
-    def generate_matricule(self):
-        gender_digit = '1' if self.contact_details.gender == GenderEnum.MALE.value else '2'
-        match self.contact_details.gender:
+    
+
+    def generateMatricule(self):
+        genderDigit = '1' if self.contactDetails.gender == GenderEnum.MALE.value else '2'
+        match self.contactDetails.gender:
             case GenderEnum.MALE.name:
-                gender_digit = '1'
+                genderDigit = '1'
             case GenderEnum.FEMALE.name:
                 gender_digit = '2'
             case _:
                 raise ValueError("Genre invalide. Doit être 'Masculin' ou 'Féminin'")
             
 
-        birth_date = self.contact_details.birth_date
+        birthDate = self.contactDetails.birthDate
         
         # Convertir la date en string si elle est déjà un objet date
-        if isinstance(birth_date, str):
-            birth_date = datetime.strptime(birth_date, '%Y-%m-%d').date()
+        if isinstance(birthDate, str):
+            birthDate = datetime.strptime(birthDate, '%Y-%m-%d').date()
         
-        birth_str = birth_date.strftime('%y%m%d')
+        birthStr = birthDate.strftime('%y%m%d')
         # Trouver un numéro unique en itérant sur les comptes existants
-        base_matricule = f"{gender_digit}{birth_str}"
+        baseMatricule = f"{genderDigit}{birthStr}"
         counter = 1
         while True:
-            last_three = f"{counter:03d}"  # Formatage sur 3 chiffres avec des zéros
-            matricule_test = f"{base_matricule}{last_three}"
+            lastThree = f"{counter:03d}"  # Formatage sur 3 chiffres avec des zéros
+            matriculeTest = f"{baseMatricule}{lastThree}"
             if not Account.objects.filter(
-                Q(instructor__matricule=matricule_test) | 
-                Q(educator__matricule=matricule_test)
+                Q(instructor__matricule=matriculeTest) | 
+                Q(educator__matricule=matriculeTest)
             ).exists():
                 break
             counter += 1
-        return f"{gender_digit}{birth_str}{last_three}"
+        return f"{genderDigit}{birthStr}{lastThree}"
     def save(self, *args, **kwargs):
        
         if not self.pk:  # Nouveau compte
-            if isinstance(self, (Instructor, Educator)):
-                self.employeeEmail = self.generate_email()
-            if isinstance(self, Student):
-                print("We are here")
-                self.studentEmail = self.generate_email()
-        super().save(*args, **kwargs)
-
-class Instructor(Account):  
-    matricule = models.CharField(
-        max_length=10,
-        validators=[
-            RegexValidator(
-                regex='^[12]\d{8}$',
-                message='Format matricule invalide'
-            )
-        ]
-    )
-    
-    def save(self, *args, **kwargs):
-        if not self.matricule:
-            self.matricule = self.generate_matricule()
+            self.email = self.generateEmail()
+                   
         super().save(*args, **kwargs)
 
 
 class Student(Account): 
     pass
 
-class Educator(Account):
+
+
+
+class Employee(Account):
     matricule = models.CharField(
         max_length=10,
         validators=[
@@ -161,19 +143,4 @@ class Educator(Account):
         if not self.matricule:
             self.matricule = self.generate_matricule()
         super().save(*args, **kwargs)
-
-class Administrator(Account):
-    matricule = models.CharField(
-        max_length=10,
-        validators=[
-            RegexValidator(
-                regex='^[12]\d{8}$',
-                message='Format matricule invalide'
-            )
-        ]
-    )
-    def save(self, *args, **kwargs):
-        if not self.matricule:
-            self.matricule = self.generate_matricule()
-        super().save(*args, **kwargs)
-
+    pass
