@@ -1,15 +1,11 @@
 from rest_framework import serializers
-from .models import Account, Instructor, Student, Administrator, ContactDetails, Address
+from .models import Account, Student,  ContactDetails, Address
 
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = '__all__'
+        exclude = ["password"]
 
-class InstructorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Instructor
-        fields = '__all__'
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
@@ -24,11 +20,6 @@ class StudentSerializer(serializers.ModelSerializer):
     address = AddressSerializer()
     class Meta:
         model = Student
-        exclude = ["employee_email", "employee_role"]
-
-class AdministratorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Administrator
-        fields = '__all__'
+        exclude = []
 
 
