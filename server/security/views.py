@@ -8,7 +8,7 @@ from .decorators import jwt_required
 from django.http import HttpRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from .models import Student, ContactDetails, Address, Educator,Administrator
+from .models import Student, ContactDetails, Address
 from .decorators import has_employee_role
 from .entities.accountTypeEnum import EmployeRoleEnum
 import jwt

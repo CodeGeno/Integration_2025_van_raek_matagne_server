@@ -1,11 +1,10 @@
 from rest_framework import serializers
-from .models import Account, Instructor, Student, Administrator, ContactDetails, Address
+from .models import Account, Student,  ContactDetails, Address
 
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         exclude = ["password"]
-
 
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:

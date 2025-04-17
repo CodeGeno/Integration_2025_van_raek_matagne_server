@@ -57,9 +57,7 @@ class Address(models.Model):
 class Account(models.Model):
     accountId = models.AutoField(primary_key=True)
     email = models.EmailField(unique=True, null=True, blank=True)
-   
     password = models.CharField(max_length=128)
-    
     contactDetails = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)
     address=models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -89,7 +87,7 @@ class Account(models.Model):
             case GenderEnum.MALE.name:
                 genderDigit = '1'
             case GenderEnum.FEMALE.name:
-                gender_digit = '2'
+                genderDigit = '2'
             case _:
                 raise ValueError("Genre invalide. Doit être 'Masculin' ou 'Féminin'")
             
@@ -141,6 +139,7 @@ class Employee(Account):
     
     def save(self, *args, **kwargs):
         if not self.matricule:
-            self.matricule = self.generate_matricule()
+            self.matricule = self.generateMatricule()
         super().save(*args, **kwargs)
     pass
+
