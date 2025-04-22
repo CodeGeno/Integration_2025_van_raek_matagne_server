@@ -10,3 +10,6 @@ class UE(models.Model):
     description = models.TextField(blank=True)
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='ues')  # Relation un à plusieurs
     prerequisites = models.ManyToManyField('self', symmetrical=False, related_name='required_for')
+    isActive = models.BooleanField(default=True)
+    cycle=models.IntegerField(blank=False)
+    periods=models.IntegerField(blank=False)

@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import SectionCreation, GetAllSections
+from .views import SectionCreation, GetAllSections, DeleteSection
 
 urlpatterns = [
-    path('section/create/', SectionCreation, name='section-creation'),
-    path('/', GetAllSections, name='get-all-sections'),
+    path('create/', SectionCreation, name='section-creation'),
+    path('list/', GetAllSections, name='get-all-sections'),
+    path('delete/<int:section_id>/', DeleteSection, name='delete-section'),
 ]

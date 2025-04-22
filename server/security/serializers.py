@@ -16,7 +16,7 @@ class ContactDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class StudentSerializer(serializers.ModelSerializer):
-    contact_details = ContactDetailsSerializer()
+    contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
     class Meta:
         model = Student

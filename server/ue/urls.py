@@ -1,9 +1,9 @@
 from django.urls import path
-from . import views
+from .views import UECreation, GetAllUEs, UpdateUEAndPrerequisites, DeleteUE
 
 urlpatterns = [
-    path('create/', views.UECreation, name='ue-creation'),
-    path('list/', views.GetAllUEs, name='get-all-ues'),
-    path('update/<int:ue_id>/', views.UpdateUE, name='update-ue'),
-    path('update-prerequisites/<int:ue_id>/', views.UpdateUEPrerequisites, name='update-ue-prerequisites'),
+    path('list/', GetAllUEs, name='get_all_ues'),
+    path('create/', UECreation, name='create_ue'),
+    path('update/<int:ue_id>/', UpdateUEAndPrerequisites, name='update_ue'),
+    path('delete/<int:ue_id>/', DeleteUE, name='delete_ue'),  # Nouvelle URL pour désactiver l'UE
 ]
