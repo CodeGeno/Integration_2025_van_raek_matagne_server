@@ -7,7 +7,24 @@ from .serializers import UESerializer
 from api.models import ApiResponseClass
 
 # Create your views here.
-
+@api_view(['GET'])
+def GetAllUEs(request):
+    try:
+        ues = UE.objects.all()
+        serializer = UESerializer(ues, many=True)
+        return ApiResponseClass.success("Liste des UEs récupérée avec succès", serializer.data)
+    except Exception as e:
+        return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des UEs: {str(e)}")
+    
+@api_view(['GET'])
+def GetUEById(ue_id):
+    try:
+        ue = get_object_or_404(UE, ueId=ue_id)
+        serializer = UESerializer(ue)
+        return ApiResponseClass.success("UE récupérée avec succès", serializer.data)
+    except Exception as e:
+        return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de l'UE: {str(e)}")
+       
 @api_view(['POST'])
 def UECreation(request):
     try:
@@ -18,16 +35,6 @@ def UECreation(request):
         return ApiResponseClass.error("Erreur lors de la création de l'UE", serializer.errors)
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}")
-
-@api_view(['GET'])
-def GetAllUEs(request):
-    try:
-        ues = UE.objects.all()
-        serializer = UESerializer(ues, many=True)
-        return ApiResponseClass.success("Liste des UEs récupérée avec succès", serializer.data)
-    except Exception as e:
-        return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des UEs: {str(e)}")
-
 
 @api_view(['PATCH'])
 def UpdateUEAndPrerequisites(request, ue_id):
@@ -72,7 +79,7 @@ def UpdateUEAndPrerequisites(request, ue_id):
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de l'UE et des prérequis: {str(e)}")
 
 @api_view(['DELETE'])
-def DeleteUE(request, ue_id):
+def DeleteUE(ue_id):
     try:
         ue = get_object_or_404(UE, ueId=ue_id)
         
@@ -84,4 +91,4 @@ def DeleteUE(request, ue_id):
     
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la désactivation de l'UE: {str(e)}")
-       
+

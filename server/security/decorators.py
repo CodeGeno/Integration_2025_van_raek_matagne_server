@@ -24,6 +24,11 @@ def jwt_required(func):
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             if payload['accountId']:
                 request.user = Account.objects.get(accountId=payload['accountId'])
+                # Stocke le type d'utilisateur et le rôle dans la requête pour un accès facile
+                if 'userType' in payload:
+                    request.user_type = payload['userType']
+                if 'role' in payload:
+                    request.user_role = payload['role']
 
         except Exception as e:
                     return JsonResponse({"error": str(e)}, status=401)
@@ -31,14 +36,9 @@ def jwt_required(func):
         return func(self, request, *args, **kwargs)  # Passage de self à la fonction d'origine
     return wrapper
 
-def check_user_authorization(user_type, employee_roles=None):
+def checkStudentToken():
     """
-    Décorateur qui vérifie si l'utilisateur est du type requis (Student ou Employee)
-    et, si c'est un Employee, vérifie également si son rôle est autorisé.
-    
-    Args:
-        user_type: Type d'utilisateur requis ("Student" ou "Employee")
-        employee_roles: Liste des rôles autorisés pour les employés (optionnel)
+    Décorateur qui vérifie si l'utilisateur est un étudiant.
     """
     def decorator(func):
         @wraps(func)
@@ -47,29 +47,47 @@ def check_user_authorization(user_type, employee_roles=None):
             try:
                 user = request.user
                 
-                # Vérifier le type d'utilisateur
-                if user_type == "Student":
-                    if not hasattr(user, 'student'):
-                        return JsonResponse({
-                            "error": "Accès réservé aux étudiants",
-                        }, status=403)
+                if not hasattr(user, 'student'):
+                    return JsonResponse({
+                        "error": "Accès réservé aux étudiants",
+                    }, status=403)
                     
-                elif user_type == "Employee":
-                    if not hasattr(user, 'employee'):
-                        return JsonResponse({
-                            "error": "Accès réservé aux employés",
-                        }, status=403)
+                return func(self, request, *args, **kwargs)
+                
+            except Exception as e:
+                return JsonResponse({"error": str(e)}, status=401)
+        return wrapper
+    return decorator
+
+def checkEmployeeToken(employee_roles=None):
+    """
+    Décorateur qui vérifie si l'utilisateur est un employé avec un rôle autorisé.
+    
+    Args:
+        employee_roles: Liste des rôles autorisés pour les employés
+    """
+    def decorator(func):
+        @wraps(func)
+        @jwt_required
+        def wrapper(self, request, *args, **kwargs):
+            try:
+                user = request.user
+                
+                if not hasattr(user, 'employee'):
+                    return JsonResponse({
+                        "error": "Accès réservé aux employés",
+                    }, status=403)
+                
+                # Vérifier le rôle de l'employé si des rôles sont spécifiés
+                if employee_roles:
+                    allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in employee_roles]
                     
-                    # Vérifier le rôle de l'employé si des rôles sont spécifiés
-                    if employee_roles:
-                        allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in employee_roles]
-                        
-                        if user.employee.role not in allowed_roles_values:
-                            return JsonResponse({
-                                "error": "Accès non autorisé pour ce rôle",
-                                "role_requis": allowed_roles_values,
-                                "votre_role": user.employee.role
-                            }, status=403)
+                    if user.employee.role not in allowed_roles_values:
+                        return JsonResponse({
+                            "error": "Accès non autorisé pour ce rôle",
+                            "role_requis": allowed_roles_values,
+                            "votre_role": user.employee.role
+                        }, status=403)
                 
                 return func(self, request, *args, **kwargs)
                 
@@ -77,3 +95,35 @@ def check_user_authorization(user_type, employee_roles=None):
                 return JsonResponse({"error": str(e)}, status=401)
         return wrapper
     return decorator
+
+def is_student(request):
+    """
+    Vérifie si l'utilisateur actuel est un étudiant.
+    
+    Args:
+        request: L'objet requête Django
+        
+    Returns:
+        bool: True si l'utilisateur est un étudiant, False sinon
+    """
+    return hasattr(request, 'user_type') and request.user_type == 'student'
+
+def is_employee(request, roles=None):
+    """
+    Vérifie si l'utilisateur actuel est un employé avec un rôle autorisé.
+    
+    Args:
+        request: L'objet requête Django
+        roles: Liste des rôles autorisés (optionnel)
+        
+    Returns:
+        bool: True si l'utilisateur est un employé avec un rôle autorisé, False sinon
+    """
+    if not hasattr(request, 'user_type') or request.user_type != 'employee':
+        return False
+        
+    if roles and hasattr(request, 'user_role'):
+        allowed_roles = [role.value if hasattr(role, 'value') else role for role in roles]
+        return request.user_role in allowed_roles
+        
+    return True

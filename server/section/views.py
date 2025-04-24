@@ -47,4 +47,23 @@ def DeleteSection(request, section_id):
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la désactivation de la section: {str(e)}")
 
 
+@api_view(['PATCH'])
+def UpdateSection(request, section_id):
+    try:
+        # Récupérer la section par son ID
+        section = get_object_or_404(Section, sectionId=section_id, isActive=True)
+        
+        # Mettre à jour partiellement la section
+        serializer = SectionSerializer(section, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return ApiResponseClass.success("Section mise à jour avec succès", serializer.data)
+        return ApiResponseClass.error("Erreur lors de la mise à jour de la section", serializer.errors)
+    except Section.DoesNotExist:
+        return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de la section: {str(e)}")
+
+
     

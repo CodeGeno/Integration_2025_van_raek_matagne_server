@@ -65,22 +65,46 @@ class Account(models.Model):
     def generateEmail(self):
         base = f"{self.contactDetails.firstName.lower()}.{self.contactDetails.lastName.lower()}"
         domain = "@student.efpl.be" if isinstance(self, Student) else "@efpl.be"
-        # Vérifier si l'email existe déjà
+        
+        # Initialiser le compteur
         counter = 1
-        email = f"{base}{domain}"
+        
+        # Boucle pour trouver un email unique
+        while True:
+            email = f"{base}{counter}{domain}"
+            
+            # Vérifier si cet email existe déjà
+            if not Account.objects.filter(email=email).exists():
+                return email
+                
+            # Incrémenter le compteur pour essayer un nouvel email
+            counter += 1
+
+class Student(Account): 
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Nouveau compte
+            self.email = self.generateEmail()
+        super().save(*args, **kwargs)
+    pass
 
 
-        lastAccount = Account.objects.filter(
-            email__startswith=base
-        ).order_by('-email').first()
-        if lastAccount:
-            counter = int(lastAccount.email.split(base)[1].split(domain)[0]) + 1
-        else:
-            counter = 1
 
-        email = f"{base}{counter}{domain}"          
-        return email 
-    
+class Employee(Account):
+    matricule = models.CharField(
+        max_length=10,
+        validators=[
+            RegexValidator(
+                regex='^[12]\d{8}$',
+                message='Format matricule invalide'
+            )
+        ]
+    )
+    role=models.CharField(
+        max_length=20,
+        choices=[(role.value, role.name) for role in EmployeRoleEnum],
+        default=EmployeRoleEnum.PROFESSOR.value
+    )
+
 
     def generateMatricule(self):
         genderDigit = '1' if self.contactDetails.gender == GenderEnum.MALE.value else '2'
@@ -106,49 +130,17 @@ class Account(models.Model):
         while True:
             lastThree = f"{counter:03d}"  # Formatage sur 3 chiffres avec des zéros
             matriculeTest = f"{baseMatricule}{lastThree}"
-            if not Account.objects.filter(
-                Q(instructor__matricule=matriculeTest) | 
-                Q(educator__matricule=matriculeTest)
-            ).exists():
+            if not Employee.objects.filter(matricule=matriculeTest).exists():
                 break
             counter += 1
         return f"{genderDigit}{birthStr}{lastThree}"
     def save(self, *args, **kwargs):
-       
         if not self.pk:  # Nouveau compte
             self.email = self.generateEmail()
-                   
-        super().save(*args, **kwargs)
-
-
-class Student(Account): 
-    pass
-
-
-
-class EmployeeRole(Enum):
-    ADMINISTRATOR = "Administrateur"
-    PROFESSOR = "Professeur"
-    EDUCATOR = "Educateur"
-
-class Employee(Account):
-    matricule = models.CharField(
-        max_length=10,
-        validators=[
-            RegexValidator(
-                regex='^[12]\d{8}$',
-                message='Format matricule invalide'
-            )
-        ]
-    )
-    role=models.CharField(
-        max_length=20,
-        choices=[(role.value, role.name) for role in EmployeeRole],
-        default=EmployeeRole.PROFESSOR.value
-    )
-    def save(self, *args, **kwargs):
+        
         if not self.matricule:
             self.matricule = self.generateMatricule()
+            
         super().save(*args, **kwargs)
     pass
 
