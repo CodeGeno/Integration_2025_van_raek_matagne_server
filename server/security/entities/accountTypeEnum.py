@@ -1,9 +1,10 @@
 from enum import Enum
 
-class EmployeRoleEnum(Enum):
+class AccountRoleEnum(Enum):
     PROFESSOR = "Professeur"
     ADMINISTRATOR = "Administrateur"
     EDUCATOR = "Educateur"
+    STUDENT = "Etudiant"
 
 
 class GenderEnum(Enum):

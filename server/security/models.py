@@ -1,5 +1,5 @@
 from django.db import models
-from .entities.accountTypeEnum import GenderEnum, EmployeRoleEnum
+from .entities.accountTypeEnum import GenderEnum, AccountRoleEnum
 from django.core.validators import RegexValidator
 from datetime import datetime
 from django.db.models import Q
@@ -61,7 +61,11 @@ class Account(models.Model):
     password = models.CharField(max_length=128)
     contactDetails = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)
     address=models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
-
+    role=models.CharField(
+        max_length=20,
+        choices=[(role.value, role.name) for role in AccountRoleEnum],
+        default=AccountRoleEnum.STUDENT.value
+    )
     def generateEmail(self):
         base = f"{self.contactDetails.firstName.lower()}.{self.contactDetails.lastName.lower()}"
         domain = "@student.efpl.be" if isinstance(self, Student) else "@efpl.be"
@@ -79,7 +83,7 @@ class Account(models.Model):
                 
             # Incrémenter le compteur pour essayer un nouvel email
             counter += 1
-
+            
 class Student(Account): 
     def save(self, *args, **kwargs):
         if not self.pk:  # Nouveau compte
@@ -99,11 +103,7 @@ class Employee(Account):
             )
         ]
     )
-    role=models.CharField(
-        max_length=20,
-        choices=[(role.value, role.name) for role in EmployeRoleEnum],
-        default=EmployeRoleEnum.PROFESSOR.value
-    )
+    
 
 
     def generateMatricule(self):

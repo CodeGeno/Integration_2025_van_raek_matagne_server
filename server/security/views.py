@@ -7,7 +7,7 @@ import bcrypt
 from .decorators import jwt_required, checkStudentToken, checkEmployeeToken
 from django.views.decorators.csrf import csrf_exempt
 from .models import Student, ContactDetails, Address
-from .entities.accountTypeEnum import EmployeRoleEnum
+from .entities.accountTypeEnum import AccountRoleEnum
 import jwt
 from django.conf import settings
 from .models import Account
@@ -25,7 +25,7 @@ from .models import Employee
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
 
 class StudentCreationEndpoint(APIView):
-    @checkEmployeeToken([EmployeRoleEnum.ADMINISTRATOR,EmployeRoleEnum.EDUCATOR])
+    @checkEmployeeToken([AccountRoleEnum.ADMINISTRATOR,AccountRoleEnum.EDUCATOR])
     def post(self, request, *args, **kwargs):
         try:
             print(request.data)
@@ -60,7 +60,7 @@ class StudentCreationEndpoint(APIView):
         
 
 class EmployeeCreationEndpoint(APIView):
-    @checkEmployeeToken([EmployeRoleEnum.ADMINISTRATOR])
+    @checkEmployeeToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request, *args, **kwargs):
         try:
             # Créer d'abord les détails de contact
@@ -78,7 +78,7 @@ class EmployeeCreationEndpoint(APIView):
             employee_role = request.data.get('role')
             
             # Vérifier que le rôle est valide
-            if employee_role not in [role.name for role in EmployeRoleEnum]:
+            if employee_role not in [role.name for role in AccountRoleEnum]:
                 return ApiResponseClass.error(f"Rôle d'employé invalide: {employee_role}", status.HTTP_400_BAD_REQUEST)
             
             # Créer l'employé avec le modèle générique Employee
@@ -86,7 +86,7 @@ class EmployeeCreationEndpoint(APIView):
                 contactDetails=contactDetails,
                 password=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
                 address=address,
-                role=EmployeRoleEnum[employee_role].value
+                role=AccountRoleEnum[employee_role].value
             )
             employee.password=password
             serializer = EmployeeCreationSerializer(employee)
