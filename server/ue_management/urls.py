@@ -1,12 +1,17 @@
 # server/ue_management/urls.py
 from django.urls import path
-from .views import AcademicUEView, LessonView, ResultView
+
+from ue_management.views import (
+    AcademicUEListView, AcademicUEDetailView,
+    LessonListView, LessonDetailView,
+    ResultListView, ResultDetailView
+)
 
 urlpatterns = [
-    path('academic-ues/', AcademicUEView.as_view(), name='academic-ue-list'),
-    path('academic-ues/<int:pk>/', AcademicUEView.as_view(), name='academic-ue-detail'),
-    path('lessons/', LessonView.as_view(), name='lesson-list'),
-    path('lessons/<int:pk>/', LessonView.as_view(), name='lesson-detail'),
-    path('results/', ResultView.as_view(), name='result-list'),
-    path('results/<int:pk>/', ResultView.as_view(), name='result-detail'),
+    path('academic-ues/', AcademicUEListView.as_view(), name='ue-management_academic-ues_list'),
+    path('academic-ues/<int:pk>/', AcademicUEDetailView.as_view(), name='ue-management_academic-ues_read'),
+    path('lessons/', LessonListView.as_view(), name='ue-management_lessons_list'),
+    path('lessons/<int:pk>/', LessonDetailView.as_view(), name='ue-management_lessons_read'),
+    path('results/', ResultListView.as_view(), name='ue-management_results_list'),
+    path('results/<int:pk>/', ResultDetailView.as_view(), name='ue-management_results_read'),
 ]
