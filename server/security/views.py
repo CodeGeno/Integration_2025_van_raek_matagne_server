@@ -152,6 +152,7 @@ class StudentPagination(PageNumberPagination):
 
 @api_view(['GET'])
 def StudentList(request):
+    print(request.COOKIES)
     if request.method == 'GET':
         # Récupérer tous les étudiants
         students = Student.objects.all().order_by('accountId')  # Utiliser le nom correct du champ en base de données

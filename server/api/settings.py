@@ -146,3 +146,4 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Remplacez par votre domaine
     "https://votre-domaine.com",
 ]
+CORS_ALLOW_CREDENTIALS = True
