@@ -147,3 +147,4 @@ CORS_ALLOWED_ORIGINS = [
     "https://votre-domaine.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True  # Dangereux en production !

@@ -27,7 +27,7 @@ class StudentSerializer(serializers.ModelSerializer):
     account = AccountSerializer(source='*')
     class Meta:
         model = Student
-        exclude = []
+        exclude = ["password"]
 
 class StudentCreationSerializer(serializers.ModelSerializer):
     contactDetails = ContactDetailsSerializer()
@@ -42,3 +42,10 @@ class EmployeeCreationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         exclude = []
+
+class EmployeeSerializer(serializers.ModelSerializer):
+    contactDetails = ContactDetailsSerializer()
+    address = AddressSerializer()
+    class Meta:
+        model = Employee
+        exclude = ["password"]
