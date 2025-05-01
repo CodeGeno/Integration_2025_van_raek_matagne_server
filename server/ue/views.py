@@ -28,10 +28,18 @@ def GetAllUEs(request):
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des UEs: {str(e)}")
 
+@api_view(['GET'])
+def GetUEById(request, ue_id):
+    try:
+        ue = get_object_or_404(UE, ueId=ue_id)
+        serializer = UESerializer(ue)
+        return ApiResponseClass.success("UE récupérée avec succès", serializer.data)
+    except Exception as e:
+        return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de l'UE: {str(e)}")
 
 @api_view(['PATCH'])
 def UpdateUEAndPrerequisites(request, ue_id):
-    try:
+    tr
         ue = get_object_or_404(UE, ueId=ue_id)
         
         # Mettre à jour les informations de l'UE

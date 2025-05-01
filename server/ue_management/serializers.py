@@ -23,10 +23,17 @@ class AcademicUESerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
     results = ResultSerializer(many=True, read_only=True)
     students = StudentSerializer(many=True, read_only=True)
+    ue = serializers.SerializerMethodField()
 
     class Meta:
         model = AcademicUE
         fields = '__all__'
+
+    def get_ue(self, obj):
+        if hasattr(obj, 'ue') and obj.ue:
+            from ue.serializers import UESerializer
+            return UESerializer(obj.ue).data
+        return None
 
 class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
