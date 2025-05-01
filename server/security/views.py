@@ -263,6 +263,7 @@ def EmployeeEdit(request, employee_id):
             status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
+        print(e)
         return ApiResponseClass.error(
             f"Erreur lors de la mise à jour de l'employé: {str(e)}", 
             status.HTTP_500_INTERNAL_SERVER_ERROR
