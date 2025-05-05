@@ -19,8 +19,8 @@ class SectionCategory(Enum):
 class Section(models.Model):
     sectionId = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255, blank=False)
-    sectionType = models.CharField(max_length=255, blank=False, choices=[(type.value, type.name) for type in SectionType])
-    sectionCategory = models.CharField(max_length=255, blank=False, choices=[(cat.value, cat.name) for cat in SectionCategory])
+    sectionType = models.CharField(max_length=255, blank=False, choices=[(type.name, type.value) for type in SectionType])
+    sectionCategory = models.CharField(max_length=255, blank=False, choices=[(cat.name, cat.value) for cat in SectionCategory])
     description = models.TextField(blank=True)
     isActive = models.BooleanField(default=True)
 

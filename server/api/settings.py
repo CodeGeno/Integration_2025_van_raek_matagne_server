@@ -29,6 +29,19 @@ ALLOWED_HOSTS = ["127.0.0.1","localhost"]
 
 
 # Application definition
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'basic': {
+            'type': 'basic'
+        }
+    },
+   
+}
+
+REDOC_SETTINGS = {
+   'LAZY_RENDERING': False,
+  
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,13 +50,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
+    'drf_yasg',
     'security',
     'section',
     'ue',
     'ue_management',
     'corsheaders',
-    'drf_yasg',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [

@@ -3,18 +3,33 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Section
-from .serializers import SectionSerializer
+from .serializers import SectionSerializer,SectionCreationSerializer
 from api.models import ApiResponseClass
+from django.db.models import Q
+from api.pagination import StandardResultsSetPagination
 # Create your views here.
 
 @api_view(['POST'])
 def SectionCreation(request):
     try:
-        serializer = SectionSerializer(data=request.data)
+        print(request.data)
+        # Utiliser le sérialiseur standard puisque le modèle accepte maintenant les noms d'enum
+        serializer = SectionCreationSerializer(data=request.data)
         if serializer.is_valid():
+            print(serializer.validated_data)
             serializer.save()
+            print(serializer.data)
             return ApiResponseClass.created("Section créée avec succès", serializer.data)
+        print("Erreurs de validation:", serializer.errors)
         return ApiResponseClass.error("Erreur lors de la création de la section", serializer.errors)
+    except ValueError as e:
+        return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+    except TypeError as e:
+        return ApiResponseClass.error(f"Erreur de type: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+    except Section.DoesNotExist:
+        return ApiResponseClass.error("La section demandée n'existe pas", status_code=status.HTTP_404_NOT_FOUND)
+    except PermissionError:
+        return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une section", status_code=status.HTTP_403_FORBIDDEN)
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}")
 
@@ -22,13 +37,43 @@ def SectionCreation(request):
 @api_view(['GET'])
 def GetAllSections(request):
     try:
-        sections = Section.objects.filter(isActive=True)
-        serializer = SectionSerializer(sections, many=True)
-        return ApiResponseClass.success("Liste des sections actives récupérée avec succès", serializer.data)
+        # Récupérer toutes les sections actives
+        sections = Section.objects.filter(isActive=True).order_by('sectionId')
+        
+        # Recherche par nom, type ou catégorie
+        search_query = request.query_params.get('search', "")
+        type_query = request.query_params.get('type', "")
+        category_query = request.query_params.get('category', "")
+
+        # Appliquer les filtres séparément et seulement si nécessaire
+        if search_query:
+            sections = sections.filter(name__icontains=search_query)
+        
+        if type_query:
+            sections = sections.filter(sectionType=type_query)
+            
+        if category_query:
+            sections = sections.filter(sectionCategory=category_query)
+        
+       
+        
+        # Pagination
+        paginator = StandardResultsSetPagination()
+        paginated_sections = paginator.paginate_queryset(sections, request)
+        serializer = SectionSerializer(paginated_sections, many=True)
+        
+        # Retourner la réponse avec les informations de pagination
+        return ApiResponseClass.succesOverview(
+            "Liste des sections récupérée avec succès",
+            serializer.data,
+            paginator.page.number,
+            paginator.page.paginator.num_pages
+        )
     except Exception as e:
+        print(e)
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des sections: {str(e)}")
 
-
+ 
 @api_view(['DELETE'])
 def DeleteSection(request, section_id):
     try:
@@ -65,5 +110,21 @@ def UpdateSection(request, section_id):
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de la section: {str(e)}")
 
+
+@api_view(['GET'])
+def GetSectionById(request, section_id):
+    try:
+        # Récupérer la section par son ID
+        section = get_object_or_404(Section, sectionId=section_id, isActive=True)
+        
+        # Sérialiser la section pour la réponse
+        serializer = SectionCreationSerializer(section)
+        
+        return ApiResponseClass.success("Section récupérée avec succès", serializer.data)
+    except Section.DoesNotExist:
+        return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status_code=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de la section: {str(e)}")
+    
 
     

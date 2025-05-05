@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from security.entities.accountTypeEnum import EmployeRoleEnum
+from security.entities.accountTypeEnum import AccountRoleEnum
 from ue_management.models import Lesson, AcademicUE, Result
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer
 
@@ -205,31 +205,34 @@ class ResultListView(APIView):
         }
     )
     def post(self, request):
-        # @has_employee_role(EmployeRoleEnum.ADMINISTRATOR)
-        try:
-            # Validation des règles métier
-            result_value = request.data.get('result')
-            period_value = request.data.get('period')
+        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        def create_result(request):
+            try:
+                # Validation des règles métier
+                result_value = request.data.get('result')
+                period_value = request.data.get('period')
 
-            # Vérifier que result est dans la plage valide (period * 10)
-            if period_value and result_value:
-                max_result = period_value * 10
-                min_result = max_result / 2  # 50% pour réussir
+                # Vérifier que result est dans la plage valide (period * 10)
+                if period_value and result_value:
+                    max_result = period_value * 10
+                    min_result = max_result / 2  # 50% pour réussir
 
-                if not (min_result <= result_value <= max_result):
-                    return ApiResponseClass.error(
-                        f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
-                        status_code=status.HTTP_400_BAD_REQUEST
-                    )
+                    if not (min_result <= result_value <= max_result):
+                        return ApiResponseClass.error(
+                            f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
+                            status_code=status.HTTP_400_BAD_REQUEST
+                        )
 
-            serializer = ResultSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return ApiResponseClass.created("Résultat créé avec succès", serializer.data)
-            return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}",
-                                          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                serializer = ResultSerializer(data=request.data)
+                if serializer.is_valid():
+                    serializer.save()
+                    return ApiResponseClass.created("Résultat créé avec succès", serializer.data)
+                return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}",
+                                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return create_result(request)
 
 
 class ResultDetailView(APIView):
@@ -273,34 +276,37 @@ class ResultDetailView(APIView):
         }
     )
     def patch(self, request, pk):
-        # @has_employee_role(EmployeRoleEnum.ADMINISTRATOR)
-        try:
-            result = get_object_or_404(Result, pk=pk)
+        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        def update_result(request, pk):
+            try:
+                result = get_object_or_404(Result, pk=pk)
 
-            if hasattr(result, 'approved') and result.approved:
-                return ApiResponseClass.error(
-                    "Ce résultat a déjà été approuvé et ne peut être modifié",
-                    status_code=status.HTTP_403_FORBIDDEN
-                )
-
-            result_value = request.data.get('result')
-            period_value = request.data.get('period', result.period)
-
-            if result_value:
-                max_result = period_value * 10
-                min_result = max_result / 2
-
-                if not (min_result <= result_value <= max_result):
+                if hasattr(result, 'approved') and result.approved:
                     return ApiResponseClass.error(
-                        f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
-                        status_code=status.HTTP_400_BAD_REQUEST
+                        "Ce résultat a déjà été approuvé et ne peut être modifié",
+                        status_code=status.HTTP_403_FORBIDDEN
                     )
 
-            serializer = ResultSerializer(result, data=request.data, partial=True)
-            if serializer.is_valid():
-                updated_result = serializer.save()
-                return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
-            return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return ApiResponseClass.error(f"Erreur lors de la mise à jour: {str(e)}",
-                                          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                result_value = request.data.get('result')
+                period_value = request.data.get('period', result.period)
+
+                if result_value:
+                    max_result = period_value * 10
+                    min_result = max_result / 2
+
+                    if not (min_result <= result_value <= max_result):
+                        return ApiResponseClass.error(
+                            f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
+                            status_code=status.HTTP_400_BAD_REQUEST
+                        )
+
+                serializer = ResultSerializer(result, data=request.data, partial=True)
+                if serializer.is_valid():
+                    updated_result = serializer.save()
+                    return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
+                return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return ApiResponseClass.error(f"Erreur lor      s de la mise à jour: {str(e)}",
+                                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return update_result(request, pk)

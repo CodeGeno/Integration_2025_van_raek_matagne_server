@@ -60,7 +60,7 @@ class StudentCreationEndpoint(APIView):
         
 
 class EmployeeCreationEndpoint(APIView):
-    #@checkEmployeeToken([AccountRoleEnum.ADMINISTRATOR])
+    @checkEmployeeToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request, *args, **kwargs):
         try:
             # Créer d'abord les détails de contact
