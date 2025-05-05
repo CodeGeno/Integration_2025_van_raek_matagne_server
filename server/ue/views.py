@@ -17,7 +17,7 @@ def GetAllUEs(request):
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des UEs: {str(e)}")
     
 @api_view(['GET'])
-def GetUEById(ue_id):
+def GetUEById(request, ue_id):
     try:
         ue = get_object_or_404(UE, ueId=ue_id)
         serializer = UESerializer(ue)
@@ -40,46 +40,46 @@ def UECreation(request):
 def UpdateUEAndPrerequisites(request, ue_id):
     try:
         ue = get_object_or_404(UE, ueId=ue_id)
-        
+
         # Mettre à jour les informations de l'UE
         serializer = UESerializer(ue, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-        
+
         # Vérifier si les prérequis sont fournis dans la requête
         if 'prerequisites' in request.data:
             prerequisites_data = request.data.get('prerequisites', [])
             # Effacer les prérequis actuels
             ue.prerequisites.clear()
-            
+
             # Traiter chaque prérequis
             for prereq_data in prerequisites_data:
                 if isinstance(prereq_data, dict) and 'ueId' in prereq_data:
                     prereq_id = prereq_data['ueId']
                     try:
                         prereq_ue = UE.objects.get(ueId=prereq_id)
-                        
+
                         # Vérifier que le cycle du prérequis est inférieur ou égal à celui de l'UE
                         if prereq_ue.cycle <= ue.cycle:
                             ue.prerequisites.add(prereq_ue)
                         else:
                             return ApiResponseClass.error(f"Le prérequis {prereq_ue.name} est d'un cycle supérieur à l'UE.")
-                    
+
                     except UE.DoesNotExist:
                         return ApiResponseClass.error(f"Le prérequis {prereq_id} n'existe pas.")
                 else:
                     return ApiResponseClass.error(f"Le format des prérequis est invalide.")  # Ignorer les entrées mal formatées
-        
+
         updated_ue = UE.objects.get(ueId=ue_id)
         serializer = UESerializer(updated_ue)
-        
+
         return ApiResponseClass.success("l'UE et ses prérequis ont été mis à jour avec succès", serializer.data)
-    
+
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de l'UE et des prérequis: {str(e)}")
 
 @api_view(['DELETE'])
-def DeleteUE(ue_id):
+def DeleteUE(request, ue_id):
     try:
         ue = get_object_or_404(UE, ueId=ue_id)
         

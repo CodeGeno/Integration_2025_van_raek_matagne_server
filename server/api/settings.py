@@ -41,7 +41,9 @@ INSTALLED_APPS = [
     'security',
     'section',
     'ue',
+    'ue_management',
     'corsheaders',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
