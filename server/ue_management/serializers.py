@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
-from ue_management.models import Lesson, AcademicUE, Result, Attendance
+from ue_management.models import Lesson, AcademicUE, Result
+from attendance.models import Attendance
+from attendance.serializer import AttendanceSerializer
 
 from security.serializers import StudentSerializer
 
@@ -34,8 +36,3 @@ class AcademicUESerializer(serializers.ModelSerializer):
             from ue.serializers import UESerializer
             return UESerializer(obj.ue).data
         return None
-
-class AttendanceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Attendance
-        fields = '__all__'

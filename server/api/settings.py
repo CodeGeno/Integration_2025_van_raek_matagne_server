@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'section',
     'ue',
     'ue_management',
+    'attendance',
     'corsheaders',
     'rest_framework',
 ]

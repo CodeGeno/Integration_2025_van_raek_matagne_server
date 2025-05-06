@@ -59,7 +59,7 @@ def checkStudentToken():
         return wrapper
     return decorator
 
-def checkEmployeeToken(employee_roles=None):
+def checkRoleToken(roles):
     """
     Décorateur qui vérifie si l'utilisateur est un employé avec un rôle autorisé.
     
@@ -79,11 +79,11 @@ def checkEmployeeToken(employee_roles=None):
                     }, status=403)
                 
                 # Vérifier le rôle de l'employé si des rôles sont spécifiés
-                if employee_roles:
-                    allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in employee_roles]
+                if roles:
+                    allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in roles]
                     
                     if user.employee.role not in allowed_roles_values:
-                        return JsonResponse({
+                        return ApiResponse({
                             "error": "Accès non autorisé pour ce rôle",
                             "role_requis": allowed_roles_values,
                             "votre_role": user.employee.role
@@ -96,34 +96,3 @@ def checkEmployeeToken(employee_roles=None):
         return wrapper
     return decorator
 
-def is_student(request):
-    """
-    Vérifie si l'utilisateur actuel est un étudiant.
-    
-    Args:
-        request: L'objet requête Django
-        
-    Returns:
-        bool: True si l'utilisateur est un étudiant, False sinon
-    """
-    return hasattr(request, 'user_type') and request.user_type == 'student'
-
-def is_employee(request, roles=None):
-    """
-    Vérifie si l'utilisateur actuel est un employé avec un rôle autorisé.
-    
-    Args:
-        request: L'objet requête Django
-        roles: Liste des rôles autorisés (optionnel)
-        
-    Returns:
-        bool: True si l'utilisateur est un employé avec un rôle autorisé, False sinon
-    """
-    if not hasattr(request, 'user_type') or request.user_type != 'employee':
-        return False
-        
-    if roles and hasattr(request, 'user_role'):
-        allowed_roles = [role.value if hasattr(role, 'value') else role for role in roles]
-        return request.user_role in allowed_roles
-        
-    return True

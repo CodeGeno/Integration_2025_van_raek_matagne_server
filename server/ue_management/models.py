@@ -42,19 +42,3 @@ class Result(models.Model):
         unique_together = ('academicsUE', 'student')
 
 
-class Attendance(models.Model):
-    ATTENDANCE_CHOICES = [
-        ('P', 'Présent (présentiel)'),
-        ('M', 'Présent (distanciel)'),
-        ('A', 'Absent non justifié'),
-        ('CM', 'Absent sous certificat'),
-        ('D', 'Dispensé'),
-        ('Abandon', 'Abandon')
-    ]
-
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='attendances')
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendances')
-    status = models.CharField(max_length=10, choices=ATTENDANCE_CHOICES, default='A')
-
-    class Meta:
-        unique_together = ('lesson', 'student')
