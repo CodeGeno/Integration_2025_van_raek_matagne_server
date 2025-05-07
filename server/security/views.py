@@ -296,3 +296,88 @@ def EmployeeGet(request, employee_id):
         )
     
 
+@api_view(['GET'])
+def StudentGetById(request, id):
+    try:
+        # Récupérer l'étudiant par ID
+        student = Student.objects.get(accountId=id)
+        
+        # Sérialiser les données de l'étudiant
+        serializer = StudentSerializer(student)
+        print(serializer.data)
+        # Retourner les données sérialisées
+        return ApiResponseClass.success(
+            "Détails de l'étudiant récupérés avec succès", 
+            serializer.data
+        )
+    except Student.DoesNotExist:
+        return ApiResponseClass.error(
+            "Étudiant non trouvé", 
+            status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return ApiResponseClass.error(
+            f"Erreur lors de la récupération de l'étudiant: {str(e)}", 
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+
+@api_view(['PATCH'])
+def StudentEdit(request, student_id):
+    try:
+        # Récupérer l'étudiant par ID
+        student = Student.objects.get(accountId=student_id)
+        
+        # Mise à jour des informations de l'étudiant
+        # Récupérer les données du corps de la requête
+        data = request.data
+        
+        # Mise à jour des informations de contact
+        if 'contactDetails' in data:
+            contact_data = data.get('contactDetails')
+            for key, value in contact_data.items():
+                setattr(student.contactDetails, key, value)
+            student.contactDetails.save()
+            
+        # Mise à jour des informations d'adresse
+        if 'address' in data:
+            address_data = data.get('address')
+            for key, value in address_data.items():
+                setattr(student.address, key, value)
+            student.address.save()
+        
+        # Mise à jour du rôle si présent (bien que cela soit normalement fixé pour un étudiant)
+        if 'role' in data:
+            role = data.get('role')
+            if role in [role.name for role in AccountRoleEnum]:
+                student.role = AccountRoleEnum[role].value
+            else:
+                return ApiResponseClass.error(
+                    f"Rôle d'étudiant invalide: {role}", 
+                    status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Sauvegarder les modifications
+        student.save()
+        
+        # Sérialiser les données mises à jour
+        serializer = StudentSerializer(student)
+        
+        # Retourner les données sérialisées
+        return ApiResponseClass.success(
+            "Informations de l'étudiant mises à jour avec succès", 
+            serializer.data
+        )
+    except Student.DoesNotExist:
+        return ApiResponseClass.error(
+            "Étudiant non trouvé", 
+            status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        print(e)
+        return ApiResponseClass.error(
+            f"Erreur lors de la mise à jour de l'étudiant: {str(e)}", 
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+
