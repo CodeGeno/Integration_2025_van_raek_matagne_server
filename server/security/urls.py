@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StudentCreationEndpoint, EmployeeCreationEndpoint, Login, StudentList, EmployeeList, EmployeeEdit, EmployeeGet, StudentGetById # Importez votre vue
+from .views import StudentCreationEndpoint, EmployeeCreationEndpoint, Login, StudentList, EmployeeList, EmployeeEdit, EmployeeGet, StudentGetById,StudentEdit # Importez votre vue
 
 
 urlpatterns = [
