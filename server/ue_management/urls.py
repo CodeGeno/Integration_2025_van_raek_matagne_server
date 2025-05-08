@@ -4,8 +4,7 @@ from django.urls import path
 from ue_management.views import (
     AcademicUEListView, AcademicUEDetailView,
     LessonListView, LessonDetailView,
-    ResultListView, ResultDetailView,
-    GenerateNextYearUEsView
+    ResultListView, ResultDetailView
 )
 
 urlpatterns = [
@@ -16,4 +15,6 @@ urlpatterns = [
     path('lessons/<int:pk>/', LessonDetailView.as_view(), name='ue-management_lessons_read'),
     path('results/', ResultListView.as_view(), name='ue-management_results_list'),
     path('results/<int:pk>/', ResultDetailView.as_view(), name='ue-management_results_read'),
+    path('academic-ues/register/<int:id>/', AcademicUEGetById, name='ue-management_academic-ues_create'),
+
 ]

@@ -45,11 +45,15 @@ class AcademicUEListView(APIView):
         }
     )
     def post(self, request):
-        serializer = AcademicUESerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return ApiResponseClass.created("UE académique créée avec succès", serializer.data)
-        return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = AcademicUESerializer(data=request.data)
+            if serializer.is_valid():
+
+                serializer.save()
+                return ApiResponseClass.created("UE académique créée avec succès", serializer.data)
+            return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return ApiResponseClass.error(f"Erreur lors de la création de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GenerateNextYearUEsView(APIView):
@@ -359,7 +363,19 @@ class ResultDetailView(APIView):
                     return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
                 return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                return ApiResponseClass.error(f"Erreur lors de la mise à jour: {str(e)}",
+                return ApiResponseClass.error(f"Erreur lor      s de la mise à jour: {str(e)}",
                                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return update_result(request, pk)
+
+@api_view(['GET'])
+def AcademicUEGetById(request, id):
+    try:
+        academicUE = AcademicUE.objects.select_related('professor').prefetch_related('students','lessons','results').get(id=id)
+        serializer = AcademicUESerializer(academicUE)
+        return ApiResponseClass.success("Détails de l'UE académique récupérés avec succès", serializer.data)
+    except AcademicUE.DoesNotExist:
+        return ApiResponseClass.error("UE académique non trouvée", status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de la récupération de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+

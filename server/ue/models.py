@@ -5,7 +5,7 @@ from section.models import Section
 
 # Create your models here.
 class UE(models.Model):
-    ueId = models.AutoField(primary_key=True)
+    ueId = models.AutoField(primary_key=True,db_column='ueId')
     name = models.CharField(max_length=255, blank=False)
     description = models.TextField(blank=True)
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='ues')  # Relation un à plusieurs

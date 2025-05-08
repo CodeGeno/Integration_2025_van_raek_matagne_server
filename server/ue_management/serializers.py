@@ -3,9 +3,11 @@ from rest_framework import serializers
 from ue_management.models import Lesson, AcademicUE, Result
 from attendance.models import Attendance
 from attendance.serializer import AttendanceSerializer
-
-from security.serializers import StudentSerializer
-
+from ue.models import UE
+from security.models import Employee
+from security.entities.accountTypeEnum import AccountRoleEnum
+from security.serializers import StudentSerializer, EmployeeSerializer
+from ue.serializers import UESerializer
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,14 +27,10 @@ class AcademicUESerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
     results = ResultSerializer(many=True, read_only=True)
     students = StudentSerializer(many=True, read_only=True)
-    ue = serializers.SerializerMethodField()
-
+    ue = UESerializer(read_only=True)
+    professor = EmployeeSerializer(read_only=True)
     class Meta:
         model = AcademicUE
         fields = '__all__'
 
-    def get_ue(self, obj):
-        if hasattr(obj, 'ue') and obj.ue:
-            from ue.serializers import UESerializer
-            return UESerializer(obj.ue).data
-        return None
+   
