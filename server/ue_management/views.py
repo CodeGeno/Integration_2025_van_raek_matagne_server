@@ -3,13 +3,15 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view
+from datetime import datetime, timedelta
+
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from security.entities.accountTypeEnum import AccountRoleEnum
 from ue_management.models import Lesson, AcademicUE, Result
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer
+from ue.models import UE
 
 from api.models import ApiResponseClass
 
@@ -43,15 +45,66 @@ class AcademicUEListView(APIView):
         }
     )
     def post(self, request):
-        try:    
+        try:
             serializer = AcademicUESerializer(data=request.data)
             if serializer.is_valid():
-                
+
                 serializer.save()
                 return ApiResponseClass.created("UE académique créée avec succès", serializer.data)
             return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la création de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GenerateNextYearUEsView(APIView):
+    parser_classes = [JSONParser]
+
+    @swagger_auto_schema(
+        operation_description="Génère les UE académiques pour l'année suivante",
+        responses={
+            201: openapi.Response(
+                description="UEs académiques générées avec succès",
+                schema=AcademicUESerializer(many=True)
+            ),
+            400: openapi.Response(description="Erreur lors de la génération")
+        }
+    )
+    def post(self, request):
+        try:
+            # Récupérer l'année actuelle
+            current_year = datetime.now().year
+            next_year = current_year + 1
+
+            # Récupérer toutes les UE actives
+            active_ues = UE.objects.filter(isActive=True)
+
+            # Calculer les dates de début et de fin pour l'année suivante
+            start_date = datetime(next_year, 9, 15)  # 15 septembre
+            end_date = datetime(next_year, 6, 30)    # 30 juin
+
+            created_ues = []
+            for ue in active_ues:
+                # Vérifier si l'UE académique existe déjà pour l'année suivante
+                if not AcademicUE.objects.filter(ue=ue, year=next_year).exists():
+                    academic_ue = AcademicUE.objects.create(
+                        year=next_year,
+                        start_date=start_date,
+                        end_date=end_date,
+                        ue=ue
+                    )
+                    created_ues.append(academic_ue)
+
+            serializer = AcademicUESerializer(created_ues, many=True)
+            return ApiResponseClass.created(
+                f"{len(created_ues)} UEs académiques générées avec succès pour l'année {next_year}",
+                serializer.data
+            )
+
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la génération des UEs académiques: {str(e)}",
+                status.HTTP_400_BAD_REQUEST
+            )
 
 
 class AcademicUEDetailView(APIView):
