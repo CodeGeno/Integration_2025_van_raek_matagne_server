@@ -383,3 +383,32 @@ def StudentEdit(request, student_id):
         )
     
 
+@api_view(['GET'])
+def EmployeeTeacherList(request):
+    if request.method == 'GET':
+        # Récupérer uniquement les employés avec le rôle 'PROFESSOR'
+        teachers = Employee.objects.filter(role=AccountRoleEnum.PROFESSOR.value).order_by('id')
+        
+        # Recherche par nom ou email
+        search_query = request.query_params.get('search', None)
+        if search_query:
+            teachers = teachers.filter(
+                Q(contactDetails__firstName__icontains=search_query) |
+                Q(contactDetails__lastName__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(matricule__icontains=search_query)
+            )
+  
+        # Pagination
+        paginator = StandardResultsSetPagination()  
+        paginated_teachers = paginator.paginate_queryset(teachers, request)
+        serializer = EmployeeSerializer(paginated_teachers, many=True)
+        
+        # Obtenir les informations de pagination correctement
+        return ApiResponseClass.succesOverview(
+            "Liste des professeurs récupérée avec succès", 
+            serializer.data, 
+            paginator.page.number, 
+            paginator.page.paginator.num_pages
+        )
+
