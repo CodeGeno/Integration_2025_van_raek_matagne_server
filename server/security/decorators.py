@@ -4,8 +4,9 @@ from functools import wraps
 from django.http import JsonResponse
 from django.conf import settings
 from .models import Account
+from api.models import ApiResponseClass
+from rest_framework import status
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
-
 
 
 def jwt_required(func):
@@ -83,11 +84,7 @@ def checkRoleToken(roles):
                     allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in roles]
                     
                     if user.employee.role not in allowed_roles_values:
-                        return ApiResponse({
-                            "error": "Accès non autorisé pour ce rôle",
-                            "role_requis": allowed_roles_values,
-                            "votre_role": user.employee.role
-                        }, status=403)
+                        return ApiResponseClass.error("Accès non autorisé pour ce rôle", status.HTTP_403_FORBIDDEN)
                 
                 return func(self, request, *args, **kwargs)
                 

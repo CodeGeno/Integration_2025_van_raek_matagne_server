@@ -38,7 +38,7 @@ class StudentSerializer(serializers.ModelSerializer):
            return None
     contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
-    account = AccountSerializer(source='*')
+   
     class Meta:
         model = Student
         exclude = ["password"]

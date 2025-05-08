@@ -7,7 +7,6 @@ from enum import Enum
 
 
 class ContactDetails(models.Model):
-    contactDetailsId = models.AutoField(primary_key=True)
     firstName = models.CharField(max_length=50)
     lastName = models.CharField(max_length=50)
     phoneNumber = models.CharField(max_length=20)
@@ -46,7 +45,6 @@ class ContactDetails(models.Model):
         super().save(*args, **kwargs)
 
 class Address(models.Model):
-    addressId = models.AutoField(primary_key=True)
     street = models.CharField(max_length=100)
     city = models.CharField(max_length=50)
     zipCode = models.CharField(max_length=10)
@@ -56,7 +54,7 @@ class Address(models.Model):
     state = models.CharField(max_length=50)
 
 class Account(models.Model):
-    accountId = models.AutoField(primary_key=True,db_column='accountId')
+    
     email = models.EmailField(unique=True, null=True, blank=True)
     password = models.CharField(max_length=128)
     contactDetails = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)

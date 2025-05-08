@@ -13,6 +13,6 @@ class UESerializer(serializers.ModelSerializer):
     prerequisites = serializers.SerializerMethodField("get_prerequisites")
     class Meta:
         model = UE
-        fields = ['ueId', 'name', 'description', 'isActive', 'section', 'prerequisites','cycle','periods']
+        fields = '__all__'
 
     
