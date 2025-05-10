@@ -617,4 +617,71 @@ def StudentStatusGetByAcademicUeId(request, academicUeId):
     except Student.DoesNotExist:
         return ApiResponseClass.error("Étudiants non trouvés", status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return ApiResponseClass.error(f"Erreur lors de la récupération des états des étudiants: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def RegisterStudentsToAcademicUE(request, id):
+    try:
+        academic_ue = get_object_or_404(AcademicUE, id=id)
+        student_ids = request.data.get('student_ids', [])
+
+        if not student_ids:
+            return ApiResponseClass.error("Aucun étudiant spécifié", status.HTTP_400_BAD_REQUEST)
+
+        registered_students = []
+        failed_students = []
+
+        for student_id in student_ids:
+            try:
+                student = Student.objects.get(id=student_id)
+                
+                # Vérification des prérequis
+                has_all_prerequisites = True
+                if academic_ue.ue.prerequisites.exists():
+                    for prerequisite in academic_ue.ue.prerequisites.all():
+                        has_result = Result.objects.filter(
+                            academicsUE__ue=prerequisite,
+                            student=student,
+                            success=True
+                        ).exists()
+                        
+                        if not has_result:
+                            has_all_prerequisites = False
+                            break
+
+                if has_all_prerequisites:
+                    academic_ue.students.add(student)
+                    registered_students.append(student_id)
+                else:
+                    failed_students.append(student_id)
+
+            except Student.DoesNotExist:
+                failed_students.append(student_id)
+
+        return ApiResponseClass.success(
+            "Inscription des étudiants terminée",
+            {
+                "registered_students": registered_students,
+                "failed_students": failed_students
+            }
+        )
+
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de l'inscription des étudiants: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def GetStudentResults(request, academic_ue, student):
+    try:
+        results = Result.objects.filter(
+            academicsUE_id=academic_ue,
+            student_id=student
+        )
+        
+        if not results.exists():
+            return ApiResponseClass.error("Aucun résultat trouvé", status.HTTP_404_NOT_FOUND)
+
+        serializer = ResultSerializer(results, many=True)
+        return ApiResponseClass.success("Résultats récupérés avec succès", serializer.data)
+
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de la récupération des résultats: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)     
