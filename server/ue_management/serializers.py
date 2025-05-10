@@ -12,7 +12,7 @@ from ue.serializers import UESerializer
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ['lesson_date']
+        fields = ['id', 'lesson_date', 'status']
 
 
 class ResultSerializer(serializers.ModelSerializer):

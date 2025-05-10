@@ -24,6 +24,15 @@ class AcademicUEListView(APIView):
 
     @swagger_auto_schema(
         operation_description="Liste toutes les UEs académiques",
+        manual_parameters=[
+            openapi.Parameter(
+                'section_id',
+                openapi.IN_QUERY,
+                description="ID de la section pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
         responses={
             200: openapi.Response(
                 description="Liste des UEs académiques récupérée avec succès",
@@ -32,9 +41,27 @@ class AcademicUEListView(APIView):
         }
     )
     def get(self, request):
-        academic_ues = AcademicUE.objects.all()
-        serializer = AcademicUESerializer(academic_ues, many=True)
-        return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
+        try:
+            section_id = request.query_params.get('section_id')
+            academic_ues = AcademicUE.objects.all()
+            
+            if section_id:
+                try:
+                    section_id = int(section_id)
+                    academic_ues = academic_ues.filter(ue__section_id=section_id)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "L'ID de la section doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+                
+            serializer = AcademicUESerializer(academic_ues, many=True)
+            return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la récupération des UEs académiques: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_description="Crée une nouvelle UE académique",

@@ -4,6 +4,12 @@ from ue.models import UE
 
 from security.models import Student, Employee
 
+class LessonStatus(models.TextChoices):
+    PROGRAMMED = 'PROGRAMMED', 'Programmé'
+    IN_PROGRESS = 'IN_PROGRESS', 'En cours'
+    COMPLETED = 'COMPLETED', 'Terminé'
+    CANCELLED = 'CANCELLED', 'Annulé'
+
 class AcademicUE(models.Model):
     id = models.AutoField(primary_key=True)
     year = models.IntegerField()
@@ -23,6 +29,11 @@ class Lesson(models.Model):
     id = models.AutoField(primary_key=True)
     academic_ue = models.ForeignKey(AcademicUE, on_delete=models.CASCADE, related_name='lessons')
     lesson_date = models.DateField()
+    status = models.CharField(
+        max_length=20,
+        choices=LessonStatus.choices,
+        default=LessonStatus.PROGRAMMED
+    )
 
     def __str__(self):
         return f"Séance du {self.lesson_date} - {self.academic_ue}"
