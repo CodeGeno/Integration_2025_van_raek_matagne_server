@@ -420,4 +420,67 @@ def SectionRegistration(request, id):
     except Section.DoesNotExist:
         return ApiResponseClass.error("Section non trouvée", status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)     
+        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def RegisterStudentsToAcademicUE(request, id):
+    try:
+        academic_ue = get_object_or_404(AcademicUE, id=id)
+        student_ids = request.data.get('student_ids', [])
+        
+        if not student_ids:
+            return ApiResponseClass.error("Aucun étudiant spécifié", status.HTTP_400_BAD_REQUEST)
+            
+        # Ajouter les étudiants à l'UE académique
+        academic_ue.students.add(*student_ids)
+        
+        # Créer les résultats pour chaque étudiant
+        for student_id in student_ids:
+            # Vérifier si un résultat existe déjà
+            if not Result.objects.filter(academicsUE=academic_ue, student_id=student_id).exists():
+                Result.objects.create(
+                    academicsUE=academic_ue,
+                    student_id=student_id,
+                    period=academic_ue.ue.period,
+                    result=None,
+                    success=False,
+                    isExempt=False,
+                    approved=False
+                )
+        
+        serializer = AcademicUESerializer(academic_ue)
+        return ApiResponseClass.success("Étudiants inscrits avec succès", serializer.data)
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de l'inscription des étudiants: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def GetStudentResults(request, academic_ue, student):
+    """
+    Récupère les résultats d'un étudiant pour une UE académique spécifique.
+    """
+    try:
+        # Validation des paramètres
+        academic_ue_id = int(academic_ue)
+        student_id = int(student)
+
+        # Récupération des résultats
+        results = Result.objects.filter(
+            academicsUE_id=academic_ue_id,
+            student_id=student_id
+        ).order_by('-id')  # Tri par ID décroissant pour avoir les plus récents en premier
+
+        serializer = ResultSerializer(results, many=True)
+        return ApiResponseClass.success(
+            "Résultats récupérés avec succès",
+            serializer.data
+        )
+    except ValueError:
+        return ApiResponseClass.error(
+            "Les IDs doivent être des nombres entiers",
+            status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return ApiResponseClass.error(
+            f"Erreur lors de la récupération des résultats: {str(e)}",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )     

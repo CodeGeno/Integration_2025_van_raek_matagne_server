@@ -5,17 +5,20 @@ from ue_management.views import (
     AcademicUEListView, AcademicUEDetailView,
     LessonListView, LessonDetailView,
     ResultListView, ResultDetailView, AcademicUEGetById,
-    GenerateNextYearUEsView, SectionRegistration
+    GenerateNextYearUEsView, SectionRegistration,
+    RegisterStudentsToAcademicUE, GetStudentResults
 )
 
 urlpatterns = [
-    path('academic-ues/', AcademicUEListView.as_view(), name='ue-management_academic-ues_list'),
-    path('academic-ues/<int:pk>/', AcademicUEDetailView.as_view(), name='ue-management_academic-ues_read'),
-    path('academic-ues/generate-next-year/', GenerateNextYearUEsView.as_view(), name='ue-management_generate-next-year'),
-    path('lessons/', LessonListView.as_view(), name='ue-management_lessons_list'),
-    path('lessons/<int:pk>/', LessonDetailView.as_view(), name='ue-management_lessons_read'),
-    path('results/', ResultListView.as_view(), name='ue-management_results_list'),
-    path('results/<int:pk>/', ResultDetailView.as_view(), name='ue-management_results_read'),
-    path('academic-ues/register/<int:id>/', AcademicUEGetById, name='ue-management_academic-ues_create'),
-    path('section/register/<int:id>/', SectionRegistration, name='ue-management_section_create'),
+    path('academic-ues/', AcademicUEListView.as_view(), name='academic-ue-list'),
+    path('academic-ues/<int:pk>/', AcademicUEDetailView.as_view(), name='academic-ue-detail'),
+    path('lessons/', LessonListView.as_view(), name='lesson-list'),
+    path('lessons/<int:pk>/', LessonDetailView.as_view(), name='lesson-detail'),
+    path('results/', ResultListView.as_view(), name='result-list'),
+    path('results/<int:pk>/', ResultDetailView.as_view(), name='result-detail'),
+    path('results/<int:academic_ue>/<int:student>/', GetStudentResults, name='get-student-results'),
+    path('generate-next-year/', GenerateNextYearUEsView.as_view(), name='generate-next-year'),
+    path('academic-ues/<int:id>/', AcademicUEGetById, name='academic-ue-get-by-id'),
+    path('academic-ues/<int:id>/register-section/', SectionRegistration, name='section-registration'),
+    path('academic-ues/<int:id>/register-students/', RegisterStudentsToAcademicUE, name='register-students'),
 ]
