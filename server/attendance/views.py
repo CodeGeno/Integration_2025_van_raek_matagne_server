@@ -8,6 +8,10 @@ from security.decorators import checkRoleToken
 from security.models import AccountRoleEnum
 from api.models import ApiResponseClass
 from django.db import transaction
+from django.shortcuts import get_object_or_404
+from ue_management.models import AcademicUE, Lesson
+from security.models import Student
+from attendance.models import AttendanceStatusEnum
 # Create your views here.
 
 @api_view(['POST'])
@@ -101,3 +105,26 @@ def AttendanceValidation(request):
                     return ApiResponseClass.created("Présence validée avec succès", serializer.data)
                 return ApiResponseClass.error(serializer.errors)
     return wrapper(request)
+
+
+@api_view(['POST'])
+def StudentAcademicUeDropout(request, academicUeId, studentId):
+    try:
+        # Vérification de l'existence de l'UE académique et de l'étudiant
+        student = get_object_or_404(Student, id=studentId)
+        academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
+        if academic_ue.students.filter(id=studentId).exists():
+            lessons = Lesson.objects.filter(academic_ue=academic_ue)
+            for lesson in lessons:
+                attendance, created = Attendance.objects.get_or_create(
+                    lesson=lesson,
+                    student=student
+                )
+                if not created:
+                    attendance.status = AttendanceStatusEnum.ABANDON
+                    attendance.save()
+            return ApiResponseClass.success("L'étudiant a été retiré de l'UE académique", {"student_id": student.id, "academic_ue_id": academic_ue.id})
+        else:
+            return ApiResponseClass.error("L'étudiant n'est pas inscrit à cette UE", status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de la désinscription: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)

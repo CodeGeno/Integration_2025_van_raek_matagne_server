@@ -5,34 +5,26 @@ from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from datetime import datetime, timedelta
-
+from django.db.models import Q
+from attendance.models import Attendance, AttendanceStatusEnum
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
 from ue_management.models import Lesson, AcademicUE, Result
-from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer
+from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer,StudentAcademicUeRegistrationSerializer
 from ue.models import UE
 from section.models import Section
 from section.serializers import SectionSerializer
-
+from security.models import Student
 from api.models import ApiResponseClass
-
-
+from security.serializers import StudentSerializer
+from ue_management.models import StudentAcademicUeRegistrationStatus
 class AcademicUEListView(APIView):
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
         operation_description="Liste toutes les UEs académiques",
-        manual_parameters=[
-            openapi.Parameter(
-                'section_id',
-                openapi.IN_QUERY,
-                description="ID de la section pour filtrer les UEs",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            )
-        ],
         responses={
             200: openapi.Response(
                 description="Liste des UEs académiques récupérée avec succès",
@@ -41,27 +33,9 @@ class AcademicUEListView(APIView):
         }
     )
     def get(self, request):
-        try:
-            section_id = request.query_params.get('section_id')
-            academic_ues = AcademicUE.objects.all()
-            
-            if section_id:
-                try:
-                    section_id = int(section_id)
-                    academic_ues = academic_ues.filter(ue__section_id=section_id)
-                except ValueError:
-                    return ApiResponseClass.error(
-                        "L'ID de la section doit être un nombre entier",
-                        status.HTTP_400_BAD_REQUEST
-                    )
-                
-            serializer = AcademicUESerializer(academic_ues, many=True)
-            return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
-        except Exception as e:
-            return ApiResponseClass.error(
-                f"Erreur lors de la récupération des UEs académiques: {str(e)}",
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        academic_ues = AcademicUE.objects.all()
+        serializer = AcademicUESerializer(academic_ues, many=True)
+        return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
 
     @swagger_auto_schema(
         operation_description="Crée une nouvelle UE académique",
@@ -410,14 +384,237 @@ def AcademicUEGetById(request, id):
         return ApiResponseClass.error(f"Erreur lors de la récupération de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
-def SectionRegistration(request, id):
- 
-    
+def SectionRegistration(request):   
     try:
-        section = Section.objects.get(id=id)
-        serializer = SectionSerializer(section)
-        return ApiResponseClass.success("Détails de la section récupérés avec succès", serializer.data)
-    except Section.DoesNotExist:
-        return ApiResponseClass.error("Section non trouvée", status.HTTP_404_NOT_FOUND)
+        # Vérification des données requises
+        required_fields = ['studentId', 'sectionId', 'cycle']
+        missing_fields = [field for field in required_fields if not request.data.get(field)]
+        if missing_fields:
+            return ApiResponseClass.error(
+                f"Champs manquants dans la requête : {', '.join(missing_fields)}",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            student = get_object_or_404(Student, id=request.data.get('studentId'))
+        except Student.DoesNotExist:
+            return ApiResponseClass.error(
+                f"Étudiant avec l'ID {request.data.get('studentId')} non trouvé",
+                status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            section = get_object_or_404(Section, id=request.data.get('sectionId'))
+        except Section.DoesNotExist:
+            return ApiResponseClass.error(
+                f"Section avec l'ID {request.data.get('sectionId')} non trouvée",
+                status.HTTP_404_NOT_FOUND
+            )
+
+        cycle = request.data.get('cycle')
+        year = datetime.now().year
+
+        try:
+            # Récupérer toutes les UEs de la section pour le cycle spécifié
+            ues = section.ues.filter(cycle=cycle)
+            
+            if not ues.exists():
+                return ApiResponseClass.error(
+                    f"Aucune UE trouvée pour le cycle {cycle}",
+                    status.HTTP_404_NOT_FOUND
+                )
+
+            # Liste pour stocker les résultats de validation
+            validation_results = []
+            already_registered_ues = []
+
+            for ue in ues:
+                # Récupérer l'UE académique pour l'année en cours
+                academic_ue = ue.academic_ues.filter(year=year).first()
+                
+                if not academic_ue:
+                    validation_results.append({
+                        'ue_name': ue.name,
+                        'has_all_prerequisites': False,
+                        'missing_prerequisites': ['UE académique non disponible pour cette année'],
+                        'status': 'non_disponible'
+                    })
+                    continue
+
+                # Vérifier si l'étudiant est déjà inscrit
+                if academic_ue.students.filter(id=student.id).exists():
+                    already_registered_ues.append(ue.name)
+                    validation_results.append({
+                        'ue_name': ue.name,
+                        'has_all_prerequisites': True,
+                        'missing_prerequisites': [],
+                        'status': 'deja_inscrit'
+                    })
+                    continue
+
+                has_all_prerequisites = True
+                missing_prerequisites = []
+                
+                if ue.prerequisites.exists():
+                    for prerequisite in ue.prerequisites.all():
+                        try:
+                            # Vérifier si l'étudiant a un résultat pour ce prérequis
+                            has_result = Result.objects.filter(
+                                academicsUE__ue=prerequisite,
+                                student=student,
+                                success=True
+                            ).exists()
+                            
+                            if not has_result:
+                                has_all_prerequisites = False
+                                missing_prerequisites.append(prerequisite.name)
+                        except Exception as e:
+                            return ApiResponseClass.error(
+                                f"Erreur lors de la vérification du prérequis {prerequisite.name}: {str(e)}",
+                                status.HTTP_500_INTERNAL_SERVER_ERROR
+                            )
+                
+                validation_results.append({
+                    'ue_name': ue.name,
+                    'has_all_prerequisites': has_all_prerequisites,
+                    'missing_prerequisites': missing_prerequisites,
+                    'status': 'inscription_reussie' if has_all_prerequisites else 'prerequis_manquants'
+                })
+                
+                if has_all_prerequisites:
+                    try:
+                        academic_ue.students.add(student)
+                    except Exception as e:
+                        return ApiResponseClass.error(
+                            f"Erreur lors de l'inscription à l'UE {ue.name}: {str(e)}",
+                            status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+
+            # Préparer le message de réponse
+            message = "Inscription aux UEs de la section effectuée avec succès"
+            if already_registered_ues:
+                message += f". L'étudiant était déjà inscrit aux UEs suivantes : {', '.join(already_registered_ues)}"
+
+            serializer = SectionSerializer(section)
+            return ApiResponseClass.success(
+                message,
+                {
+                    'section': serializer.data,
+                    'validation_results': validation_results
+                }
+            )
+
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors du traitement des UEs académiques: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     except Exception as e:
-        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)     
+        return ApiResponseClass.error(
+            f"Erreur inattendue lors de l'inscription à la section: {str(e)}",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+def StudentAcademicUeRegistration(request, academicUeId, studentId):
+    try:
+        # Vérification de l'existence de l'UE académique et de l'étudiant
+        student = get_object_or_404(Student, id=studentId)
+        academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
+        
+        # Vérification des prérequis
+        has_all_prerequisites = True
+        if academic_ue.ue.prerequisites.exists():
+            for prerequisite in academic_ue.ue.prerequisites.all():
+                # Vérifier si l'étudiant a un résultat pour ce prérequis
+                has_result = Result.objects.filter(
+                    academicsUE__ue=prerequisite,
+                    student=student,
+                    success=True
+                ).exists()
+                
+                if not has_result:
+                    has_all_prerequisites = False
+                    break
+
+        # Si l'étudiant a tous les prérequis, l'inscrire dans l'UE académique
+        if has_all_prerequisites:
+            academic_ue.students.add(student)
+            return ApiResponseClass.created(
+                "Inscription réussie - L'étudiant a été inscrit à l'UE académique",
+                {"student_id": student.id, "academic_ue_id": academic_ue.id}
+            )
+        else:
+            return ApiResponseClass.error(
+                "L'étudiant n'a pas tous les prérequis nécessaires pour s'inscrire à cette UE",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de l'inscription: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+      
+        
+@api_view(['GET'])
+def StudentStatusGetByAcademicUeId(request, academicUeId):
+    try:
+        # Récupération des paramètres de filtrage
+        search = request.query_params.get('search', '')
+        page = int(request.query_params.get('page', 1))
+        page_size = min(int(request.query_params.get('page_size', 25)), 25)  # Maximum 25 éléments par page
+
+        # Vérification de l'existence de l'UE académique
+        academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
+
+        # Construction de la requête de base en excluant les étudiants déjà inscrits
+        query = Student.objects.exclude(enrolled_ues=academic_ue)
+        
+        # Application du filtre de recherche
+        if search:
+            query = query.filter(
+                Q(contactDetails__firstName__icontains=search) |
+                Q(contactDetails__lastName__icontains=search) |
+                Q(identifier__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        # Calcul de la pagination
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
+
+        # Récupération des résultats paginés
+        total_count = query.count()
+        students = query[start_index:end_index]
+        
+        # Préparation des données des étudiants avec leur statut
+        student_data = []
+        for student in students:
+            status = StudentAcademicUeRegistrationStatus.AP.value  # Par défaut, on considère que l'étudiant a tous les prérequis
+            
+            # Vérification des prérequis
+            if academic_ue.ue.prerequisites.exists():
+                for prerequisite in academic_ue.ue.prerequisites.all():
+                    # Vérifier si l'étudiant a un résultat pour ce prérequis
+                    has_result = Result.objects.filter(
+                        academicsUE__ue=prerequisite,
+                        student=student,
+                        success=True
+                    ).exists()
+                    
+                    if not has_result:
+                        status = StudentAcademicUeRegistrationStatus.NP.value
+                        break
+
+            # Ajout des données de l'étudiant avec son statut
+            student_serializer = StudentAcademicUeRegistrationSerializer(student)
+            student_dict = student_serializer.data
+            student_dict['status'] = status
+            student_data.append(student_dict)
+
+        return ApiResponseClass.success("Détails des états des étudiants récupérés avec succès", student_data)
+    except Student.DoesNotExist:
+        return ApiResponseClass.error("Étudiants non trouvés", status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de la récupération des états des étudiants: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)

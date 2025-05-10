@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ue_management.models import Lesson, AcademicUE, Result
+from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
 from attendance.models import Attendance
 from attendance.serializer import AttendanceSerializer
 from ue.models import UE
@@ -8,6 +8,7 @@ from security.models import Employee
 from security.entities.accountTypeEnum import AccountRoleEnum
 from security.serializers import StudentSerializer, EmployeeSerializer
 from ue.serializers import UESerializer
+from .models import StudentAcademicUeRegistration
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,4 +72,17 @@ class AcademicUESerializer(serializers.ModelSerializer):
             
         return academic_ue
 
-   
+class StudentRegistrationStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentAcademicUeRegistration      
+        fields = ['id', 'academicUeId', 'studentId', 'status']
+
+class StudentAcademicUeRegistrationSerializer(StudentSerializer):
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, obj):
+        return getattr(obj, 'status', StudentAcademicUeRegistrationStatus.AP.value)
+
+    class Meta:
+        model = StudentAcademicUeRegistration
+        fields = ['id', 'email', 'identifier', 'contactDetails', 'status']

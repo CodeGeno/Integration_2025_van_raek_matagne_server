@@ -1,4 +1,5 @@
 from django.db import models
+from enum import Enum
 
 from ue.models import UE
 
@@ -52,4 +53,19 @@ class Result(models.Model):
     class Meta:
         unique_together = ('academicsUE', 'student')
 
+
+class StudentAcademicUeRegistrationStatus(Enum):
+    AP = 'AP'  # A présenté
+    NP = 'NP'  # N'a pas présenté
+
+    @classmethod
+    def choices(cls):
+        return [(status.value, status.name) for status in cls]
+
+class StudentAcademicUeRegistration(Student):
+    status = models.CharField(
+        max_length=20,
+        choices=StudentAcademicUeRegistrationStatus.choices(),
+        default=StudentAcademicUeRegistrationStatus.AP.value
+    )
 

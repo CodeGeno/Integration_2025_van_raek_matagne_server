@@ -16,33 +16,7 @@ class ContactDetails(models.Model):
         choices=[(gender.value, gender.name) for gender in GenderEnum],
         default=GenderEnum.MALE.value 
     )
-    identifier = models.CharField(
-        max_length=6,
-        unique=True,
-        validators=[
-            RegexValidator(
-                regex='^[1-9][0-9]{5}$',
-                message='L\'identifiant doit être composé de 6 chiffres et ne pas commencer par 0'
-            )
-        ]
-    )
-    
-    def generate_identifier(self):
-        # Récupérer le dernier identifiant utilisé
-        lastContact = ContactDetails.objects.order_by('-identifier').first()
-        
-        if not lastContact or not lastContact.identifier:
-            return "100000"
-            
-        lastNumber = int(lastContact.identifier)
-        nextNumber = lastNumber + 1
-        
-        return str(nextNumber)
-
-    def save(self, *args, **kwargs):
-        if not self.identifier:
-            self.identifier = self.generate_identifier()
-        super().save(*args, **kwargs)
+   
 
 class Address(models.Model):
     street = models.CharField(max_length=100)
@@ -54,23 +28,44 @@ class Address(models.Model):
     state = models.CharField(max_length=50)
 
 class Account(models.Model):
+    identifier = models.CharField(
+        max_length=6,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex='^[1-9][0-9]{5}$',
+                message='L\'identifiant doit être composé de 6 chiffres et ne pas commencer par 0'
+            )
+        ]
+    )
     
     email = models.EmailField(unique=True, null=True, blank=True)
     password = models.CharField(max_length=128)
     contactDetails = models.OneToOneField(ContactDetails, on_delete=models.CASCADE, null=True, blank=True)
-    address=models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
-    role=models.CharField(
+    address = models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
+    role = models.CharField(
         max_length=20,
         choices=[(role.value, role.name) for role in AccountRoleEnum],
         default=AccountRoleEnum.STUDENT.value
     )
+
+    def generate_identifier(self):
+        # Récupérer le dernier identifiant utilisé
+        lastAccount = Account.objects.order_by('-identifier').first()
+        
+        if not lastAccount or not lastAccount.identifier:
+            return "100000"
+            
+        lastNumber = int(lastAccount.identifier)
+        nextNumber = lastNumber + 1
+        
+        return str(nextNumber)
+
     def generateEmail(self):
         base = f"{self.contactDetails.firstName.lower()}.{self.contactDetails.lastName.lower()}"
         domain = "@student.efpl.be" if isinstance(self, Student) else "@efpl.be"
-        
         # Initialiser le compteur
         counter = 1
-        
         # Boucle pour trouver un email unique
         while True:
             email = f"{base}{counter}{domain}"
@@ -81,6 +76,12 @@ class Account(models.Model):
                 
             # Incrémenter le compteur pour essayer un nouvel email
             counter += 1
+
+    def save(self, *args, **kwargs):
+        if not self.identifier:
+            self.identifier = self.generate_identifier()
+        super().save(*args, **kwargs)
+            
             
 class Student(Account): 
     def save(self, *args, **kwargs):
