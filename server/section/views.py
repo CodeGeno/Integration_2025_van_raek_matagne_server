@@ -38,7 +38,7 @@ def SectionCreation(request):
 def GetAllSections(request):
     try:
         # Récupérer toutes les sections actives
-        sections = Section.objects.filter(isActive=True).order_by('sectionId')
+        sections = Section.objects.filter(isActive=True).order_by('id')
         
         # Recherche par nom, type ou catégorie
         search_query = request.query_params.get('search', "")
@@ -78,7 +78,7 @@ def GetAllSections(request):
 def DeleteSection(request, section_id):
     try:
         # Récupérer la section par son ID
-        section = get_object_or_404(Section, sectionId=section_id)
+        section = get_object_or_404(Section, id=section_id)
         
         # Mettre à jour le champ isActive au lieu de supprimer
         section.isActive = False
@@ -96,7 +96,7 @@ def DeleteSection(request, section_id):
 def UpdateSection(request, section_id):
     try:
         # Récupérer la section par son ID
-        section = get_object_or_404(Section, sectionId=section_id, isActive=True)
+        section = get_object_or_404(Section, id=section_id, isActive=True)
         
         # Mettre à jour partiellement la section
         serializer = SectionSerializer(section, data=request.data, partial=True)
@@ -115,7 +115,7 @@ def UpdateSection(request, section_id):
 def GetSectionById(request, section_id):
     try:
         # Récupérer la section par son ID
-        section = get_object_or_404(Section, sectionId=section_id, isActive=True)
+        section = get_object_or_404(Section, id=section_id, isActive=True)
         
         # Sérialiser la section pour la réponse
         serializer = SectionCreationSerializer(section)

@@ -7,11 +7,13 @@ from datetime import datetime, timedelta
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
+from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
 from ue_management.models import Lesson, AcademicUE, Result
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer
 from ue.models import UE
+from section.models import Section
+from section.serializers import SectionSerializer
 
 from api.models import ApiResponseClass
 
@@ -363,7 +365,7 @@ class ResultDetailView(APIView):
                     return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
                 return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                return ApiResponseClass.error(f"Erreur lor      s de la mise à jour: {str(e)}",
+                return ApiResponseClass.error(f"Erreur lors de la mise à jour: {str(e)}",
                                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return update_result(request, pk)
@@ -379,3 +381,15 @@ def AcademicUEGetById(request, id):
     except Exception as e:
         return ApiResponseClass.error(f"Erreur lors de la récupération de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(['POST'])
+def SectionRegistration(request, id):
+ 
+    
+    try:
+        section = Section.objects.get(id=id)
+        serializer = SectionSerializer(section)
+        return ApiResponseClass.success("Détails de la section récupérés avec succès", serializer.data)
+    except Section.DoesNotExist:
+        return ApiResponseClass.error("Section non trouvée", status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)     
