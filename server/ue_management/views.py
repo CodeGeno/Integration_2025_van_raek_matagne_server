@@ -265,7 +265,7 @@ class ResultListView(APIView):
         }
     )
     def post(self, request):
-        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        #@has_employee_role([AccountRoleEnum.ADMINISTRATOR])
         def create_result(request):
             try:
                 # Validation des règles métier

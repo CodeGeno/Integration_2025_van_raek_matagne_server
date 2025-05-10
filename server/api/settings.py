@@ -159,8 +159,8 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Remplacez par votre domaine
-    "https://votre-domaine.com",
+    "http://localhost:3000",
+    "http://localhost:3001",
 ]
 
 
