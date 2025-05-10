@@ -5,6 +5,7 @@ from rest_framework import status
 from .models import UE
 from .serializers import UESerializer
 from api.models import ApiResponseClass
+from django.db.utils import IntegrityError
 
 # Create your views here.
 @api_view(['GET'])
@@ -19,7 +20,7 @@ def GetAllUEs(request):
 @api_view(['GET'])
 def GetUEById(request, ue_id):
     try:
-        ue = get_object_or_404(UE, ueId=ue_id)
+        ue = get_object_or_404(UE, id=ue_id)
         serializer = UESerializer(ue)
         return ApiResponseClass.success("UE récupérée avec succès", serializer.data)
     except Exception as e:
@@ -32,14 +33,33 @@ def UECreation(request):
         if serializer.is_valid():
             serializer.save()
             return ApiResponseClass.created("UE créée avec succès", serializer.data)
-        return ApiResponseClass.error("Erreur lors de la création de l'UE", serializer.errors)
+        
+        # Traitement détaillé des erreurs de sérialisation
+        error_details = []
+        for field, errors in serializer.errors.items():
+            if isinstance(errors, list):
+                for error in errors:
+                    error_details.append(f"{field}: {error}")
+            else:
+                error_details.append(f"{field}: {errors}")
+        
+        error_message = "Erreurs de validation :\n" + "\n".join(error_details)
+        return ApiResponseClass.error(error_message, status_code=status.HTTP_400_BAD_REQUEST)
+    except ValueError as e:
+        return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+    except TypeError as e:
+        return ApiResponseClass.error(f"Erreur de type: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+    except IntegrityError as e:
+        return ApiResponseClass.error("Cette UE existe déjà dans la base de données", status_code=status.HTTP_409_CONFLICT)
+    except PermissionError:
+        return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une UE", status_code=status.HTTP_403_FORBIDDEN)
     except Exception as e:
-        return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}")
+        return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['PATCH'])
 def UpdateUEAndPrerequisites(request, ue_id):
     try:
-        ue = get_object_or_404(UE, ueId=ue_id)
+        ue = get_object_or_404(UE, id=ue_id)
 
         # Mettre à jour les informations de l'UE
         serializer = UESerializer(ue, data=request.data, partial=True)
@@ -57,7 +77,7 @@ def UpdateUEAndPrerequisites(request, ue_id):
                 if isinstance(prereq_data, dict) and 'ueId' in prereq_data:
                     prereq_id = prereq_data['ueId']
                     try:
-                        prereq_ue = UE.objects.get(ueId=prereq_id)
+                        prereq_ue = UE.objects.get(id=prereq_id)
 
                         # Vérifier que le cycle du prérequis est inférieur ou égal à celui de l'UE
                         if prereq_ue.cycle <= ue.cycle:
@@ -70,7 +90,7 @@ def UpdateUEAndPrerequisites(request, ue_id):
                 else:
                     return ApiResponseClass.error(f"Le format des prérequis est invalide.")  # Ignorer les entrées mal formatées
 
-        updated_ue = UE.objects.get(ueId=ue_id)
+        updated_ue = UE.objects.get(id=ue_id)
         serializer = UESerializer(updated_ue)
 
         return ApiResponseClass.success("l'UE et ses prérequis ont été mis à jour avec succès", serializer.data)
@@ -81,13 +101,13 @@ def UpdateUEAndPrerequisites(request, ue_id):
 @api_view(['DELETE'])
 def DeleteUE(request, ue_id):
     try:
-        ue = get_object_or_404(UE, ueId=ue_id)
+        ue = get_object_or_404(UE, id=ue_id)
         
         # Changer isActive à False au lieu de supprimer l'objet
         ue.isActive = False
         ue.save()
         
-        return ApiResponseClass.success("UE désactivée avec succès", {"ueId": ue.ueId})
+        return ApiResponseClass.success("UE désactivée avec succès", {"ueId": ue.id})
     
     except Exception as e:
         return ApiResponseClass.error(f"Une erreur s'est produite lors de la désactivation de l'UE: {str(e)}")
