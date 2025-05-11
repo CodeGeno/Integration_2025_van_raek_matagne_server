@@ -6,7 +6,8 @@ from ue_management.views import (
     LessonListView, LessonDetailView,
     ResultListView, ResultDetailView, AcademicUEGetById,
     GenerateNextYearUEsView, SectionRegistration,
-    RegisterStudentsToAcademicUE, GetStudentResults
+    RegisterStudentsToAcademicUE, GetStudentResults,
+    GetStudentAcademicUEs
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('academic-ues/<int:id>/', AcademicUEGetById, name='academic-ue-get-by-id'),
     path('academic-ues/<int:id>/register-section/', SectionRegistration, name='section-registration'),
     path('academic-ues/<int:id>/register-students/', RegisterStudentsToAcademicUE, name='register-students'),
+    path('academic-ues/student/<int:student_id>/', GetStudentAcademicUEs, name='get-student-academic-ues'),
 ]

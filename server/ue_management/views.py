@@ -10,6 +10,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
+from security.models import Student
 from ue_management.models import Lesson, AcademicUE, Result
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer
 from ue.models import UE
@@ -47,6 +48,13 @@ class AcademicUEListView(APIView):
                 required=False
             ),
             openapi.Parameter(
+                'year',
+                openapi.IN_QUERY,
+                description="Année pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
                 'active_only',
                 openapi.IN_QUERY,
                 description="Filtrer uniquement les UEs actives",
@@ -66,6 +74,7 @@ class AcademicUEListView(APIView):
             section_id = request.query_params.get('section_id')
             name = request.query_params.get('name')
             cycle = request.query_params.get('cycle')
+            year = request.query_params.get('year')
             active_only = request.query_params.get('active_only')
             
             academic_ues = AcademicUE.objects.all()
@@ -90,6 +99,16 @@ class AcademicUEListView(APIView):
                 except ValueError:
                     return ApiResponseClass.error(
                         "Le cycle doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+
+            if year:
+                try:
+                    year = int(year)
+                    academic_ues = academic_ues.filter(year=year)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "L'année doit être un nombre entier",
                         status.HTTP_400_BAD_REQUEST
                     )
                     
@@ -535,5 +554,27 @@ def GetStudentResults(request, academic_ue, student):
     except Exception as e:
         return ApiResponseClass.error(
             f"Erreur lors de la récupération des résultats: {str(e)}",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+def GetStudentAcademicUEs(request, student_id):
+    try:
+        # Récupérer l'étudiant
+        student = get_object_or_404(Student, id=student_id)
+        
+        # Récupérer toutes les UE académiques de l'étudiant
+        academic_ues = AcademicUE.objects.filter(students=student)
+        
+        # Sérialiser les données
+        serializer = AcademicUESerializer(academic_ues, many=True)
+        
+        return ApiResponseClass.success(
+            "UE académiques de l'étudiant récupérées avec succès",
+            serializer.data
+        )
+    except Exception as e:
+        return ApiResponseClass.error(
+            f"Erreur lors de la récupération des UE académiques: {str(e)}",
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )     

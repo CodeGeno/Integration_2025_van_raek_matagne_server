@@ -10,6 +10,8 @@ from security.serializers import StudentSerializer, EmployeeSerializer
 from ue.serializers import UESerializer
 
 class LessonSerializer(serializers.ModelSerializer):
+    lesson_date = serializers.DateField(input_formats=['%Y-%m-%d'])
+
     class Meta:
         model = Lesson
         fields = ['id', 'lesson_date', 'status']

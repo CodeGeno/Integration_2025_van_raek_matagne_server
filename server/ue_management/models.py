@@ -6,9 +6,9 @@ from security.models import Student, Employee
 
 class LessonStatus(models.TextChoices):
     PROGRAMMED = 'PROGRAMMED', 'Programmé'
-    IN_PROGRESS = 'IN_PROGRESS', 'En cours'
     COMPLETED = 'COMPLETED', 'Terminé'
     CANCELLED = 'CANCELLED', 'Annulé'
+    REPORTED = 'REPORTED', 'Reporté'
 
 class AcademicUE(models.Model):
     id = models.AutoField(primary_key=True)
