@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
 from attendance.models import Attendance
-from attendance.serializer import AttendanceSerializer
+from attendance.serializers import AttendanceSerializer
 from ue.models import UE
 from security.models import Employee
 from security.entities.accountTypeEnum import AccountRoleEnum
@@ -90,6 +90,8 @@ class StudentAcademicUeRegistrationSerializer(StudentSerializer):
 class LessonDetailSerializer(serializers.ModelSerializer):
     academic_ue = AcademicUESerializer(read_only=True)
     students = StudentSerializer(many=True, read_only=True)
+
+   
 
     class Meta:
         model = Lesson

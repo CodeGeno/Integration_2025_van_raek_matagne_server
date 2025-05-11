@@ -4,7 +4,7 @@ from rest_framework import status
 import string
 import secrets
 import bcrypt
-from .decorators import jwt_required, checkStudentToken, checkRoleToken
+from .decorators import jwt_required, checkRoleToken
 from django.views.decorators.csrf import csrf_exempt
 from .models import Student, ContactDetails, Address
 from .entities.accountTypeEnum import AccountRoleEnum
@@ -25,7 +25,7 @@ import jwt
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
 
 class StudentCreationEndpoint(APIView):
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR,AccountRoleEnum.EDUCATOR])
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR,AccountRoleEnum.EDUCATOR])
     def post(self, request, *args, **kwargs):
         try:
             print(request.data)
@@ -46,7 +46,6 @@ class StudentCreationEndpoint(APIView):
             )
             student.save()
             student=Student.objects.select_related('contactDetails','address').get(email=student.email)
-          
             # Vous pouvez maintenant utiliser contact_details et address
     
             serializer = StudentCreationSerializer(student)
@@ -58,7 +57,6 @@ class StudentCreationEndpoint(APIView):
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
 class EmployeeCreationEndpoint(APIView):
    # @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request, *args, **kwargs):
@@ -98,6 +96,12 @@ class EmployeeCreationEndpoint(APIView):
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def get_enum_name_by_value(enum_class, value):
+    for name, member in enum_class.__members__.items():
+        if member.value == value:
+            print(name)
+            return name
+    return None
 
 class Login(APIView):
     def post(self, request, *args, **kwargs):
@@ -106,27 +110,18 @@ class Login(APIView):
         try:
             user, user_type, user_role = get_user_by_email(email)
             
-            # Créer le payload du token
+            # Créer le payload du token  
             payload = {
-                'accountId': user.id,
-                'userType': user_type
+                'accountId': user.id
             }
-            
-            # Ajouter le rôle si c'est un employé
-            if user_role:
-                payload['role'] = user_role
-                
             jwt_token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
             
             # Construire la réponse
             response_data = {
                 "token": jwt_token,
-                "userType": user_type
+                "role": get_enum_name_by_value(AccountRoleEnum, user_role)
             }
-            
-            if user_role:
-                response_data["role"] = user_role
-                
+           
             return ApiResponseClass.success("Token généré avec succès", response_data)
         except Account.DoesNotExist:
             return ApiResponseClass.unauthorized("Identifiants invalides")
@@ -146,8 +141,6 @@ def get_user_by_email(email):
             
     except Account.DoesNotExist:
         raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
-
-
 
 @api_view(['GET'])
 def StudentList(request):
@@ -177,8 +170,6 @@ def StudentList(request):
             paginator.page.number, 
             paginator.page.paginator.num_pages
         )
-
-
 
 @api_view(['GET'])
 def EmployeeList(request):
@@ -211,7 +202,6 @@ def EmployeeList(request):
             paginator.page.paginator.num_pages
         )
     
-
 @api_view(['PATCH'])
 def EmployeeEdit(request, employee_id):
     try:
@@ -271,7 +261,6 @@ def EmployeeEdit(request, employee_id):
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-
 @api_view(['GET'])
 def EmployeeGetById(request, employee_id):
     try:
@@ -297,7 +286,6 @@ def EmployeeGetById(request, employee_id):
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-
 @api_view(['GET'])
 def StudentGetById(request, id):
     try:
@@ -323,7 +311,6 @@ def StudentGetById(request, id):
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-
 @api_view(['PATCH'])
 def StudentEdit(request, student_id):
     try:
@@ -382,7 +369,6 @@ def StudentEdit(request, student_id):
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-
 @api_view(['GET'])
 def EmployeeTeacherList(request):
     if request.method == 'GET':

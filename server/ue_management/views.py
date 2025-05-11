@@ -25,39 +25,6 @@ class AcademicUEListView(APIView):
 
     @swagger_auto_schema(
         operation_description="Liste toutes les UEs académiques",
-<<<<<<< HEAD
-=======
-        manual_parameters=[
-            openapi.Parameter(
-                'section_id',
-                openapi.IN_QUERY,
-                description="ID de la section pour filtrer les UEs",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            ),
-            openapi.Parameter(
-                'name',
-                openapi.IN_QUERY,
-                description="Nom de l'UE pour filtrer",
-                type=openapi.TYPE_STRING,
-                required=False
-            ),
-            openapi.Parameter(
-                'cycle',
-                openapi.IN_QUERY,
-                description="Cycle pour filtrer les UEs",
-                type=openapi.TYPE_INTEGER,
-                required=False
-            ),
-            openapi.Parameter(
-                'active_only',
-                openapi.IN_QUERY,
-                description="Filtrer uniquement les UEs actives",
-                type=openapi.TYPE_BOOLEAN,
-                required=False
-            )
-        ],
->>>>>>> 1c186e8b0bae1a0b08be95ef8775d0988a1aa08a
         responses={
             200: openapi.Response(
                 description="Liste des UEs académiques récupérée avec succès",
@@ -66,53 +33,9 @@ class AcademicUEListView(APIView):
         }
     )
     def get(self, request):
-<<<<<<< HEAD
         academic_ues = AcademicUE.objects.all()
         serializer = AcademicUESerializer(academic_ues, many=True)
         return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
-=======
-        try:
-            section_id = request.query_params.get('section_id')
-            name = request.query_params.get('name')
-            cycle = request.query_params.get('cycle')
-            active_only = request.query_params.get('active_only')
-            
-            academic_ues = AcademicUE.objects.all()
-            
-            if section_id:
-                try:
-                    section_id = int(section_id)
-                    academic_ues = academic_ues.filter(ue__section_id=section_id)
-                except ValueError:
-                    return ApiResponseClass.error(
-                        "L'ID de la section doit être un nombre entier",
-                        status.HTTP_400_BAD_REQUEST
-                    )
-            
-            if name:
-                academic_ues = academic_ues.filter(ue__name__icontains=name)
-                
-            if cycle:
-                try:
-                    cycle = int(cycle)
-                    academic_ues = academic_ues.filter(ue__cycle=cycle)
-                except ValueError:
-                    return ApiResponseClass.error(
-                        "Le cycle doit être un nombre entier",
-                        status.HTTP_400_BAD_REQUEST
-                    )
-                    
-            if active_only and active_only.lower() == 'true':
-                academic_ues = academic_ues.filter(ue__isActive=True)
-                
-            serializer = AcademicUESerializer(academic_ues, many=True)
-            return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
-        except Exception as e:
-            return ApiResponseClass.error(
-                f"Erreur lors de la récupération des UEs académiques: {str(e)}",
-                status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
->>>>>>> 1c186e8b0bae1a0b08be95ef8775d0988a1aa08a
 
     @swagger_auto_schema(
         operation_description="Crée une nouvelle UE académique",
@@ -399,8 +322,7 @@ class ResultDetailView(APIView):
                 'result': openapi.Schema(type=openapi.TYPE_INTEGER, description='Résultat obtenu'),
                 'period': openapi.Schema(type=openapi.TYPE_INTEGER, description='Nombre de périodes'),
                 'success': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Succès ou échec'),
-                'isexempt': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est dispensé'),
-                'approved': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est approuvé')
+                'isexempt': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est dispensé')
             }
         ),
         responses={
@@ -415,23 +337,15 @@ class ResultDetailView(APIView):
         }
     )
     def patch(self, request, pk):
-        #@has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
         def update_result(request, pk):
             try:
                 result = get_object_or_404(Result, pk=pk)
 
-                # Si on essaie de modifier un résultat approuvé (sauf pour l'approbation elle-même)
-                if result.approved and not request.data.get('approved') and any(key in request.data for key in ['result', 'period', 'success', 'isexempt']):
+                if hasattr(result, 'approved') and result.approved:
                     return ApiResponseClass.error(
                         "Ce résultat a déjà été approuvé et ne peut être modifié",
                         status_code=status.HTTP_403_FORBIDDEN
-                    )
-
-                # Si on essaie d'approuver un résultat, on vérifie qu'il a un résultat valide
-                if request.data.get('approved') and not result.isExempt and not result.result:
-                    return ApiResponseClass.error(
-                        "Un résultat doit avoir une note valide avant d'être approuvé",
-                        status_code=status.HTTP_400_BAD_REQUEST
                     )
 
                 result_value = request.data.get('result')
@@ -446,9 +360,6 @@ class ResultDetailView(APIView):
                             f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
                             status_code=status.HTTP_400_BAD_REQUEST
                         )
-                    
-                    # Mise à jour automatique du champ success
-                    request.data['success'] = result_value >= min_result
 
                 serializer = ResultSerializer(result, data=request.data, partial=True)
                 if serializer.is_valid():
@@ -706,8 +617,8 @@ def StudentStatusGetByAcademicUeId(request, academicUeId):
     except Student.DoesNotExist:
         return ApiResponseClass.error("Étudiants non trouvés", status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return ApiResponseClass.error(f"Erreur lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        return ApiResponseClass.error(f"Erreur lors de la récupération des états des étudiants: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 @api_view(['POST'])
 def RegisterStudentsToAcademicUE(request, id):
     try:

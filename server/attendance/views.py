@@ -3,42 +3,50 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Attendance
-from .serializers import AttendanceSerializer
+from .serializers import AttendanceSerializer, AttendanceUpsertSerializer
 from security.decorators import checkRoleToken
 from security.models import AccountRoleEnum
 from api.models import ApiResponseClass
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from ue_management.models import AcademicUE, Lesson
+from ue_management.models import AcademicUE, Lesson, LessonStatus
 from security.models import Student
 from attendance.models import AttendanceStatusEnum
-from ue_management.serializers import LessonDetailSerializer
+from security.serializers import StudentSerializer,EmployeeSerializer
+from ue_management.serializers import AcademicUESerializer,LessonDetailSerializer
+
+from ue.serializers import UESerializer
 # Create your views here.
 
 @api_view(['GET'])
+@checkRoleToken([AccountRoleEnum.PROFESSOR])
 def AttendanceListByLessonId(request, lessonId):
-    if request.method == 'GET':
-        lesson = get_object_or_404(Lesson, id=lessonId)
-        attendances = Attendance.objects.filter(lesson=lesson)
-        
-        # Sérialiser les détails de la leçon
-        lesson_serializer = LessonDetailSerializer(lesson)
-        lesson_data = lesson_serializer.data
-        
-        # Sérialiser les présences
-        attendance_serializer = AttendanceSerializer(attendances, many=True)
-        
-        # Combiner les données
-        response_data = {
-            "lesson": lesson_data,
-            "attendances": attendance_serializer.data
-        }
-        
-        return ApiResponseClass.success("Détails de la leçon et présences récupérés avec succès", response_data)
+ 
+    lesson = get_object_or_404(Lesson, id=lessonId)
+    attendances = Attendance.objects.filter(lesson=lesson)
+   
+    studentsData = StudentSerializer(lesson.academic_ue.students.all(), many=True)
+    academicUeData = AcademicUESerializer(lesson.academic_ue)
+    ueData = UESerializer(lesson.academic_ue.ue)
+    professorData = EmployeeSerializer(lesson.academic_ue.professor)
+    attendanceData = AttendanceSerializer(attendances, many=True)
+    lessonData = LessonDetailSerializer(lesson)
+    
+    # Combiner les données
+    response_data = {
+        "professor": professorData.data,
+        "attendances": attendanceData.data,
+        "students": studentsData.data,
+        "academicUe": academicUeData.data,
+        "ue": ueData.data,
+        "lesson": lessonData.data
+    }
+    
+    return ApiResponseClass.success("Détails de la leçon et présences récupérés avec succès", response_data)
 
 
 @api_view(['POST'])
-def AttendanceCreation(request):
+def AttendanceUpsert(request):
     @checkRoleToken([AccountRoleEnum.PROFESSOR,AccountRoleEnum.ADMINISTRATOR])
     def wrapper(request):
         # Vérifier si les données envoyées sont une liste
@@ -49,12 +57,37 @@ def AttendanceCreation(request):
                 serializers = []
                 all_valid = True
                 validation_errors = []
+                lesson_ids = set()  # Pour stocker les IDs des leçons concernées
                 
                 for index, attendance_data in enumerate(request.data):
-                    serializer = AttendanceSerializer(data=attendance_data)
+                    print(f"Traitement des données pour l'index {index}:", attendance_data)
+                    # Vérifier l'existence de la leçon et de l'étudiant
+                    try:
+                        lesson = Lesson.objects.get(id=attendance_data.get('lesson_id'))
+                        student = Student.objects.get(id=attendance_data.get('student_id'))
+                        lesson_ids.add(lesson.id)  # Ajouter l'ID de la leçon
+                    except (Lesson.DoesNotExist, Student.DoesNotExist) as e:
+                        all_valid = False
+                        validation_errors.append({
+                            "index": index,
+                            "errors": f"Leçon ou étudiant non trouvé: {str(e)}"
+                        })
+                        continue
+
+                    # Vérifier si la présence existe déjà
+                    try:
+                        existing_attendance = Attendance.objects.get(
+                            lesson=lesson,
+                            student=student
+                        )
+                        serializer = AttendanceUpsertSerializer(existing_attendance, data=attendance_data, partial=True)
+                    except Attendance.DoesNotExist:
+                        serializer = AttendanceUpsertSerializer(data=attendance_data)
+
                     if serializer.is_valid():
                         serializers.append(serializer)
                     else:
+                        print(f"Erreurs de validation pour l'index {index}:", serializer.errors)
                         all_valid = False
                         validation_errors.append({
                             "index": index,
@@ -65,20 +98,45 @@ def AttendanceCreation(request):
                 if all_valid:
                     created_attendances = [serializer.save() for serializer in serializers]
                     response_data = [AttendanceSerializer(attendance).data for attendance in created_attendances]
-                    return ApiResponseClass.created("Toutes les présences ont été créées avec succès", response_data)
+                    
+                    # Mettre à jour le statut des leçons
+                    for lesson_id in lesson_ids:
+                        lesson = Lesson.objects.get(id=lesson_id)
+                        lesson.status = LessonStatus.COMPLETED
+                        lesson.save()
+                    
+                    return ApiResponseClass.created("Toutes les présences ont été créées/mises à jour avec succès", response_data)
                 else:
                     # Si une seule entrée est invalide, annuler la transaction et retourner les erreurs
                     transaction.set_rollback(True)
                     return ApiResponseClass.error({
-                        "message": "La création des présences a échoué. Aucune présence n'a été créée.",
+                        "message": "La création/mise à jour des présences a échoué. Aucune présence n'a été modifiée.",
                         "errors": validation_errors
                     })
         else:
             # Traiter une seule présence si les données ne sont pas une liste
-            serializer = AttendanceSerializer(data=request.data)
+            print("Données reçues:", request.data)
+            try:
+                lesson = Lesson.objects.get(id=request.data.get('lesson_id'))
+                student = Student.objects.get(id=request.data.get('student_id'))
+            except (Lesson.DoesNotExist, Student.DoesNotExist) as e:
+                return ApiResponseClass.error(f"Leçon ou étudiant non trouvé: {str(e)}")
+            try:
+                existing_attendance = Attendance.objects.get(
+                    lesson=lesson,
+                    student=student
+                )
+                serializer = AttendanceUpsertSerializer(existing_attendance, data=request.data, partial=True)
+            except Attendance.DoesNotExist:
+                serializer = AttendanceUpsertSerializer(data=request.data)
+
             if serializer.is_valid():
-                serializer.save()
-                return ApiResponseClass.created("Présence créée avec succès", serializer.data)
+                attendance = serializer.save()
+                # Mettre à jour le statut de la leçon
+                lesson.status = LessonStatus.COMPLETED
+                lesson.save()
+                return ApiResponseClass.created("Présence créée/mise à jour avec succès", serializer.data)
+            print("Erreurs de validation:", serializer.errors)
             return ApiResponseClass.error(serializer.errors)
     return wrapper(request)
     
@@ -97,7 +155,7 @@ def AttendanceValidation(request):
                     validation_errors = []
                     
                     for index, attendance_data in enumerate(request.data):
-                        serializer = AttendanceSerializer(data=attendance_data)
+                        serializer = AttendanceUpsertSerializer(data=attendance_data)
                         if serializer.is_valid():
                             serializers.append(serializer)
                         else:

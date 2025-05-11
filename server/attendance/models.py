@@ -6,12 +6,12 @@ from enum import Enum
 # Create your models here.
 
 class AttendanceStatusEnum(Enum):
-    PRESENT = 'P'
-    PRESENT_DISTANCIEL = 'M'
-    ABSENT_NON_JUSTIFIE = 'A'
-    ABSENT_SOUS_CERTIFICAT = 'CM'
-    DISPENSE = 'D'
-    ABANDON = 'Abandon'
+    P = "Présentiel"
+    M = "Distanciel"
+    CM = "Certificat médical"
+    A = "Absence non justifiée"
+    ABANDON = "Abandon"
+    D = "Dispensé"
 
 
 class Attendance(models.Model):
