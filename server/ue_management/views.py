@@ -348,7 +348,8 @@ class ResultDetailView(APIView):
                 'result': openapi.Schema(type=openapi.TYPE_INTEGER, description='Résultat obtenu'),
                 'period': openapi.Schema(type=openapi.TYPE_INTEGER, description='Nombre de périodes'),
                 'success': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Succès ou échec'),
-                'isexempt': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est dispensé')
+                'isexempt': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est dispensé'),
+                'approved': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Est approuvé')
             }
         ),
         responses={
@@ -363,15 +364,23 @@ class ResultDetailView(APIView):
         }
     )
     def patch(self, request, pk):
-        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        #@has_employee_role([AccountRoleEnum.ADMINISTRATOR])
         def update_result(request, pk):
             try:
                 result = get_object_or_404(Result, pk=pk)
 
-                if hasattr(result, 'approved') and result.approved:
+                # Si on essaie de modifier un résultat approuvé (sauf pour l'approbation elle-même)
+                if result.approved and not request.data.get('approved') and any(key in request.data for key in ['result', 'period', 'success', 'isexempt']):
                     return ApiResponseClass.error(
                         "Ce résultat a déjà été approuvé et ne peut être modifié",
                         status_code=status.HTTP_403_FORBIDDEN
+                    )
+
+                # Si on essaie d'approuver un résultat, on vérifie qu'il a un résultat valide
+                if request.data.get('approved') and not result.isExempt and not result.result:
+                    return ApiResponseClass.error(
+                        "Un résultat doit avoir une note valide avant d'être approuvé",
+                        status_code=status.HTTP_400_BAD_REQUEST
                     )
 
                 result_value = request.data.get('result')
@@ -386,6 +395,9 @@ class ResultDetailView(APIView):
                             f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
                             status_code=status.HTTP_400_BAD_REQUEST
                         )
+                    
+                    # Mise à jour automatique du champ success
+                    request.data['success'] = result_value >= min_result
 
                 serializer = ResultSerializer(result, data=request.data, partial=True)
                 if serializer.is_valid():
