@@ -86,3 +86,25 @@ class StudentAcademicUeRegistrationSerializer(StudentSerializer):
     class Meta:
         model = StudentAcademicUeRegistration
         fields = ['id', 'email', 'identifier', 'contactDetails', 'status']
+
+class LessonDetailSerializer(serializers.ModelSerializer):
+    academic_ue = AcademicUESerializer(read_only=True)
+    students = StudentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Lesson
+        fields = ['id', 'lesson_date', 'status', 'academic_ue', 'students']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Récupérer l'UE académique et les étudiants
+        academic_ue = instance.academic_ue
+        students = academic_ue.students.all()
+        
+        # Ajouter les données de l'UE académique
+        data['academic_ue'] = AcademicUESerializer(academic_ue).data
+        
+        # Ajouter les données des étudiants
+        data['students'] = StudentSerializer(students, many=True).data
+        
+        return data

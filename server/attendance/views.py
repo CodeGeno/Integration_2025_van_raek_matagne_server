@@ -12,7 +12,30 @@ from django.shortcuts import get_object_or_404
 from ue_management.models import AcademicUE, Lesson
 from security.models import Student
 from attendance.models import AttendanceStatusEnum
+from ue_management.serializers import LessonDetailSerializer
 # Create your views here.
+
+@api_view(['GET'])
+def AttendanceListByLessonId(request, lessonId):
+    if request.method == 'GET':
+        lesson = get_object_or_404(Lesson, id=lessonId)
+        attendances = Attendance.objects.filter(lesson=lesson)
+        
+        # Sérialiser les détails de la leçon
+        lesson_serializer = LessonDetailSerializer(lesson)
+        lesson_data = lesson_serializer.data
+        
+        # Sérialiser les présences
+        attendance_serializer = AttendanceSerializer(attendances, many=True)
+        
+        # Combiner les données
+        response_data = {
+            "lesson": lesson_data,
+            "attendances": attendance_serializer.data
+        }
+        
+        return ApiResponseClass.success("Détails de la leçon et présences récupérés avec succès", response_data)
+
 
 @api_view(['POST'])
 def AttendanceCreation(request):

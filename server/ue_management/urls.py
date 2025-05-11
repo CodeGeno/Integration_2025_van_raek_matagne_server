@@ -21,4 +21,5 @@ urlpatterns = [
     path('academic-ues/<int:id>/', AcademicUEGetById, name='academic-ue-get-by-id'),
     path('academic-ues/<int:id>/register-section/', SectionRegistration, name='section-registration'),
     path('academic-ues/<int:id>/register-students/', RegisterStudentsToAcademicUE, name='register-students'),
+    
 ]

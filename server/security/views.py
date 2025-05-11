@@ -108,7 +108,7 @@ class Login(APIView):
             
             # Créer le payload du token
             payload = {
-                'accountId': user.accountId,
+                'accountId': user.id,
                 'userType': user_type
             }
             
