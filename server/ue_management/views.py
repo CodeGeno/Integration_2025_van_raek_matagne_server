@@ -11,6 +11,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
+from security.models import Student
 from ue_management.models import Lesson, AcademicUE, Result
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer,StudentAcademicUeRegistrationSerializer
 from ue.models import UE
@@ -20,11 +21,49 @@ from security.models import Student
 from api.models import ApiResponseClass
 from security.serializers import StudentSerializer
 from ue_management.models import StudentAcademicUeRegistrationStatus
+
 class AcademicUEListView(APIView):
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
         operation_description="Liste toutes les UEs académiques",
+        manual_parameters=[
+            openapi.Parameter(
+                'section_id',
+                openapi.IN_QUERY,
+                description="ID de la section pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'name',
+                openapi.IN_QUERY,
+                description="Nom de l'UE pour filtrer",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'cycle',
+                openapi.IN_QUERY,
+                description="Cycle pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'year',
+                openapi.IN_QUERY,
+                description="Année pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'active_only',
+                openapi.IN_QUERY,
+                description="Filtrer uniquement les UEs actives",
+                type=openapi.TYPE_BOOLEAN,
+                required=False
+            )
+        ],
         responses={
             200: openapi.Response(
                 description="Liste des UEs académiques récupérée avec succès",
@@ -33,9 +72,58 @@ class AcademicUEListView(APIView):
         }
     )
     def get(self, request):
-        academic_ues = AcademicUE.objects.all()
-        serializer = AcademicUESerializer(academic_ues, many=True)
-        return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
+        try:
+            section_id = request.query_params.get('section_id')
+            name = request.query_params.get('name')
+            cycle = request.query_params.get('cycle')
+            year = request.query_params.get('year')
+            active_only = request.query_params.get('active_only')
+            
+            academic_ues = AcademicUE.objects.all()
+            
+            if section_id:
+                try:
+                    section_id = int(section_id)
+                    academic_ues = academic_ues.filter(ue__section_id=section_id)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "L'ID de la section doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+            
+            if name:
+                academic_ues = academic_ues.filter(ue__name__icontains=name)
+                
+            if cycle:
+                try:
+                    cycle = int(cycle)
+                    academic_ues = academic_ues.filter(ue__cycle=cycle)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "Le cycle doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+
+            if year:
+                try:
+                    year = int(year)
+                    academic_ues = academic_ues.filter(year=year)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "L'année doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+                    
+            if active_only and active_only.lower() == 'true':
+                academic_ues = academic_ues.filter(ue__isActive=True)
+                
+            serializer = AcademicUESerializer(academic_ues, many=True)
+            return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la récupération des UEs académiques: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @swagger_auto_schema(
         operation_description="Crée une nouvelle UE académique",
@@ -684,4 +772,26 @@ def GetStudentResults(request, academic_ue, student):
         return ApiResponseClass.success("Résultats récupérés avec succès", serializer.data)
 
     except Exception as e:
-        return ApiResponseClass.error(f"Erreur lors de la récupération des résultats: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)     
+        return ApiResponseClass.error(f"Erreur lors de la récupération des résultats: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def GetStudentAcademicUEs(request, student_id):
+    try:
+        # Récupérer l'étudiant
+        student = get_object_or_404(Student, id=student_id)
+        
+        # Récupérer toutes les UE académiques de l'étudiant
+        academic_ues = AcademicUE.objects.filter(students=student)
+        
+        # Sérialiser les données
+        serializer = AcademicUESerializer(academic_ues, many=True)
+        
+        return ApiResponseClass.success(
+            "UE académiques de l'étudiant récupérées avec succès",
+            serializer.data
+        )
+    except Exception as e:
+        return ApiResponseClass.error(
+            f"Erreur lors de la récupération des UE académiques: {str(e)}",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

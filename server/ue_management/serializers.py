@@ -11,6 +11,8 @@ from ue.serializers import UESerializer
 from .models import StudentAcademicUeRegistration
 
 class LessonSerializer(serializers.ModelSerializer):
+    lesson_date = serializers.DateField(input_formats=['%Y-%m-%d'])
+
     class Meta:
         model = Lesson
         fields = ['id', 'lesson_date', 'status']
