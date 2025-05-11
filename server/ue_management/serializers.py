@@ -22,7 +22,7 @@ class ResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Result
-        fields = ['academicsueId', 'result', 'period', 'studentid', 'success', 'isExempt']
+        fields = ['id', 'academicsueId', 'result', 'period', 'studentid', 'success', 'isExempt', 'approved']
 
 class AcademicUESerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
