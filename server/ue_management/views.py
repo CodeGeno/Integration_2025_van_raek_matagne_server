@@ -31,6 +31,27 @@ class AcademicUEListView(APIView):
                 description="ID de la section pour filtrer les UEs",
                 type=openapi.TYPE_INTEGER,
                 required=False
+            ),
+            openapi.Parameter(
+                'name',
+                openapi.IN_QUERY,
+                description="Nom de l'UE pour filtrer",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'cycle',
+                openapi.IN_QUERY,
+                description="Cycle pour filtrer les UEs",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'active_only',
+                openapi.IN_QUERY,
+                description="Filtrer uniquement les UEs actives",
+                type=openapi.TYPE_BOOLEAN,
+                required=False
             )
         ],
         responses={
@@ -43,6 +64,10 @@ class AcademicUEListView(APIView):
     def get(self, request):
         try:
             section_id = request.query_params.get('section_id')
+            name = request.query_params.get('name')
+            cycle = request.query_params.get('cycle')
+            active_only = request.query_params.get('active_only')
+            
             academic_ues = AcademicUE.objects.all()
             
             if section_id:
@@ -54,6 +79,22 @@ class AcademicUEListView(APIView):
                         "L'ID de la section doit être un nombre entier",
                         status.HTTP_400_BAD_REQUEST
                     )
+            
+            if name:
+                academic_ues = academic_ues.filter(ue__name__icontains=name)
+                
+            if cycle:
+                try:
+                    cycle = int(cycle)
+                    academic_ues = academic_ues.filter(ue__cycle=cycle)
+                except ValueError:
+                    return ApiResponseClass.error(
+                        "Le cycle doit être un nombre entier",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+                    
+            if active_only and active_only.lower() == 'true':
+                academic_ues = academic_ues.filter(ue__isActive=True)
                 
             serializer = AcademicUESerializer(academic_ues, many=True)
             return ApiResponseClass.success("Liste des UEs académiques récupérée avec succès", serializer.data)
