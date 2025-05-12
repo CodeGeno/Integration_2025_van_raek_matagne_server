@@ -143,6 +143,7 @@ def get_user_by_email(email):
         raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 
 @api_view(['GET'])
+@checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
 def StudentList(request):
     print(request.COOKIES)
     if request.method == 'GET':

@@ -1,10 +1,10 @@
 from enum import Enum
 
 class AccountRoleEnum(Enum):
-    PROFESSOR = "Professeur"
-    ADMINISTRATOR = "Administrateur"
-    EDUCATOR = "Educateur"
-    STUDENT = "Etudiant"
+	ADMINISTRATOR = "Administrateur"
+	STUDENT = "Etudiant"
+	PROFESSOR = "Enseignant"
+	EDUCATOR = "Educateur"
 
 
 class GenderEnum(Enum):
