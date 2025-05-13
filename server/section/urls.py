@@ -1,10 +1,10 @@
 from django.urls import path
-from .views import SectionCreation, GetAllSections, DeleteSection, UpdateSection, GetSectionById
+from .views import SectionCreationView, GetAllSectionsView, DeleteSectionView, UpdateSectionView, GetSectionByIdView
 
 urlpatterns = [
-    path('create/', SectionCreation, name='section-creation'),
-    path('list/', GetAllSections, name='get-all-sections'),
-    path('delete/<int:section_id>/', DeleteSection, name='delete-section'),
-    path('update/<int:section_id>/', UpdateSection, name='update-section'),
-    path('<int:section_id>/', GetSectionById, name='get-section-by-id'),
+    path('create/', SectionCreationView.as_view(), name='section-creation'),
+    path('list/', GetAllSectionsView.as_view(), name='get-all-sections'),
+    path('delete/<int:section_id>/', DeleteSectionView.as_view(), name='delete-section'),
+    path('update/<int:section_id>/', UpdateSectionView.as_view(), name='update-section'),
+    path('<int:section_id>/', GetSectionByIdView.as_view(), name='get-section-by-id'),
 ]

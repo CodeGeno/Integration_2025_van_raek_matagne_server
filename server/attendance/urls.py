@@ -1,9 +1,9 @@
 from django.urls import path
-from .views import AttendanceUpsert, AttendanceValidation, StudentAcademicUeDropout, AttendanceListByLessonId
+from .views import AttendanceUpsertView, AttendanceValidationView, StudentAcademicUeDropoutView, AttendanceListByLessonIdView
 
 urlpatterns = [
-    path('upsert/', AttendanceUpsert, name='attendance-upsert'),
-    path('validate/', AttendanceValidation, name='attendance-validation'),
-    path('dropout/<int:academicUeId>/<int:studentId>/', StudentAcademicUeDropout, name='student-academic-ue-dropout'),
-    path('details/<int:lessonId>/', AttendanceListByLessonId, name='attendance-list'),
+    path('upsert/', AttendanceUpsertView.as_view(), name='attendance-upsert'),
+    path('validate/', AttendanceValidationView.as_view(), name='attendance-validation'),
+    path('dropout/<int:academicUeId>/<int:studentId>/', StudentAcademicUeDropoutView.as_view(), name='student-academic-ue-dropout'),
+    path('details/<int:lessonId>/', AttendanceListByLessonIdView.as_view(), name='attendance-list'),
 ]
