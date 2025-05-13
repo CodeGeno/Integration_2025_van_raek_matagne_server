@@ -13,28 +13,84 @@ SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448
 def jwt_required(func):
     @wraps(func)
     def wrapper(request, *args, **kwargs):
-        token = request.headers.get("Authorization")
-        if not token:
-            return JsonResponse({"error": "Token manquant"}, status=401)
-            
-        parts = token.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return JsonResponse({"error": "Format du token invalide"}, status=401)
-        
-        token = parts[1]        
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            if payload['accountId']:
-                request.user = Account.objects.get(id=payload['accountId'])
-                # Stocke le type d'utilisateur et le rôle dans la requête pour un accès facile
+            print("=== Début de la vérification JWT ===")
+            print("Méthode de la requête:", request.method)
+            print("URL de la requête:", request.path)
+            print("Tous les headers:", dict(request.headers))
+            
+            token = request.headers.get("Authorization")
+            print("Token brut reçu:", token)
+            
+            if not token:
+                print("ERREUR: Token manquant dans les headers")
+                return JsonResponse({
+                    "error": "Token manquant",
+                    "details": "L'en-tête Authorization est requis pour cette requête"
+                }, status=401)
+                
+            parts = token.split()
+            print("Parts du token après split:", parts)
+            
+            if len(parts) != 2 or parts[0].lower() != "bearer":
+                print("ERREUR: Format du token invalide")
+                return JsonResponse({
+                    "error": "Format du token invalide",
+                    "details": "Le token doit être au format 'Bearer <token>'"
+                }, status=401)
+            
+            token = parts[1]
+            print("Token extrait:", token)
+            
+            try:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                print("Payload décodé:", payload)
+                
+                if not payload.get('accountId'):
+                    print("ERREUR: Pas d'accountId dans le payload")
+                    return JsonResponse({
+                        "error": "Token invalide",
+                        "details": "Le token ne contient pas d'identifiant de compte"
+                    }, status=401)
+
+                try:
+                    request.user = Account.objects.get(id=payload['accountId'])
+                    print("Utilisateur trouvé:", request.user)
+                except Account.DoesNotExist:
+                    print("ERREUR: Compte non trouvé pour l'ID:", payload['accountId'])
+                    return JsonResponse({
+                        "error": "Compte non trouvé",
+                        "details": f"Aucun compte trouvé avec l'ID {payload['accountId']}"
+                    }, status=401)
+
                 if 'userType' in payload:
                     request.user_type = payload['userType']
+                    print("Type d'utilisateur:", request.user_type)
                 if 'role' in payload:
                     request.user_role = payload['role']
+                    print("Rôle utilisateur:", request.user_role)
+
+            except jwt.ExpiredSignatureError:
+                print("ERREUR: Token expiré")
+                return JsonResponse({
+                    "error": "Token expiré",
+                    "details": "Le token a expiré, veuillez vous reconnecter"
+                }, status=401)
+            except jwt.InvalidTokenError as e:
+                print("ERREUR: Token invalide:", str(e))
+                return JsonResponse({
+                    "error": "Token invalide",
+                    "details": str(e)
+                }, status=401)
 
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=401)
+            print("ERREUR générale:", str(e))
+            return JsonResponse({
+                "error": "Erreur d'authentification",
+                "details": str(e)
+            }, status=500)
         
+        print("=== Fin de la vérification JWT ===")
         return func(request, *args, **kwargs)
     return wrapper
 
@@ -71,6 +127,7 @@ def checkRoleToken(roles):
                 return func(request, *args, **kwargs)
                 
             except Exception as e:
+                print("error",e)
                 return ApiResponseClass.error(str(e), status.HTTP_401_UNAUTHORIZED)
         return wrapper
     return decorator

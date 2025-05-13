@@ -78,7 +78,6 @@ def UpdateUEAndPrerequisites(request, ue_id):
                     prereq_id = prereq_data['ueId']
                     try:
                         prereq_ue = UE.objects.get(id=prereq_id)
-
                         # Vérifier que le cycle du prérequis est inférieur ou égal à celui de l'UE
                         if prereq_ue.cycle <= ue.cycle:
                             ue.prerequisites.add(prereq_ue)
