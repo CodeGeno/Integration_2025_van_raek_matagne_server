@@ -29,10 +29,31 @@ def GetUEById(request, ue_id):
 @api_view(['POST'])
 def UECreation(request):
     try:
+        # Extraire les prérequis de la requête
+        prerequisites_data = request.data.pop('prerequisites', [])
+        
+        # Créer l'UE sans les prérequis d'abord
         serializer = UESerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return ApiResponseClass.created("UE créée avec succès", serializer.data)
+            ue = serializer.save()
+            
+            # Ajouter les prérequis
+            if prerequisites_data:
+                for prereq_id in prerequisites_data:
+                    try:
+                        prereq_ue = UE.objects.get(id=prereq_id)
+                        # Vérifier que le cycle du prérequis est inférieur ou égal à celui de l'UE
+                        if prereq_ue.cycle <= ue.cycle:
+                            ue.prerequisites.add(prereq_ue)
+                        else:
+                            return ApiResponseClass.error(f"Le prérequis {prereq_ue.name} est d'un cycle supérieur à l'UE.")
+                    except UE.DoesNotExist:
+                        return ApiResponseClass.error(f"Le prérequis {prereq_id} n'existe pas.")
+            
+            # Récupérer l'UE avec ses prérequis pour la réponse
+            updated_ue = UE.objects.get(id=ue.id)
+            response_serializer = UESerializer(updated_ue)
+            return ApiResponseClass.created("UE créée avec succès", response_serializer.data)
         
         # Traitement détaillé des erreurs de sérialisation
         error_details = []

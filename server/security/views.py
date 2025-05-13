@@ -127,6 +127,7 @@ class StudentList(APIView):
     @checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
     def get(self, request):
         print(request.COOKIES)
+        # Récupérer tous les étudiants
         students = Student.objects.all().order_by('id')
 
         search_query = request.query_params.get('search', None)

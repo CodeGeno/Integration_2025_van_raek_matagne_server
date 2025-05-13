@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from .models import Section,SectionType,SectionCategory
+from ue.serializers import UESerializer
 
 class SectionSerializer(serializers.ModelSerializer):
     sectionType = serializers.SerializerMethodField()
     sectionCategory = serializers.SerializerMethodField()
+    ues = UESerializer(many=True, read_only=True)
     def get_sectionType(self, obj):
            print(obj.sectionType)
            # Trouver l'énumération correspondant à la valeur stockée

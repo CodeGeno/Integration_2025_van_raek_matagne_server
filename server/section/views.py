@@ -118,7 +118,7 @@ def GetSectionById(request, section_id):
         section = get_object_or_404(Section, id=section_id, isActive=True)
         
         # Sérialiser la section pour la réponse
-        serializer = SectionCreationSerializer(section)
+        serializer = SectionSerializer(section)
         
         return ApiResponseClass.success("Section récupérée avec succès", serializer.data)
     except Section.DoesNotExist:
