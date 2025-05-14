@@ -4,6 +4,7 @@ from django.core.validators import RegexValidator
 from datetime import datetime
 from django.db.models import Q
 from enum import Enum
+from .utils import normalize_name, normalize_for_email
 
 
 class ContactDetails(models.Model):
@@ -16,6 +17,12 @@ class ContactDetails(models.Model):
         choices=[(gender.value, gender.name) for gender in GenderEnum],
         default=GenderEnum.MALE.value 
     )
+    
+    def save(self, *args, **kwargs):
+        # Normaliser les noms et prénoms avant la sauvegarde
+        self.firstName = normalize_name(self.firstName)
+        self.lastName = normalize_name(self.lastName)
+        super().save(*args, **kwargs)
    
 
 class Address(models.Model):
@@ -45,8 +52,8 @@ class Account(models.Model):
     address = models.OneToOneField(Address, on_delete=models.CASCADE, null=True, blank=True)
     role = models.CharField(
         max_length=20,
-        choices=[(role.value, role.name) for role in AccountRoleEnum],
-        default=AccountRoleEnum.STUDENT.value
+        choices=[(role.name, role.value) for role in AccountRoleEnum],
+        default=AccountRoleEnum.STUDENT.name
     )
 
     def generate_identifier(self):
@@ -62,7 +69,13 @@ class Account(models.Model):
         return str(nextNumber)
 
     def generateEmail(self):
-        base = f"{self.contactDetails.firstName.lower()}.{self.contactDetails.lastName.lower()}"
+        # Normaliser les noms et prénoms pour l'email (trim et suppression des espaces)
+        # Utiliser directement les valeurs brutes des champs firstName et lastName
+        first_name_email = normalize_for_email(self.contactDetails.firstName)
+        last_name_email = normalize_for_email(self.contactDetails.lastName)
+        
+        # Ajouter un point entre le prénom et le nom
+        base = f"{first_name_email}.{last_name_email}"
         domain = "@student.efpl.be" if isinstance(self, Student) else "@efpl.be"
         # Initialiser le compteur
         counter = 1

@@ -10,18 +10,15 @@ from .entities.accountTypeEnum import AccountRoleEnum
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
 
 
-def jwt_required(func):
-    @wraps(func)
-    def wrapper(request, *args, **kwargs):
+def jwt_required(view_func):
+    @wraps(view_func)
+    def wrapper(self, request, *args, **kwargs):
         try:
             print("=== Début de la vérification JWT ===")
             print("Méthode de la requête:", request.method)
             print("URL de la requête:", request.path)
-            print("Tous les headers:", dict(request.headers))
             
             token = request.headers.get("Authorization")
-            print("Token brut reçu:", token)
-            
             if not token:
                 print("ERREUR: Token manquant dans les headers")
                 return JsonResponse({
@@ -30,8 +27,6 @@ def jwt_required(func):
                 }, status=401)
                 
             parts = token.split()
-            print("Parts du token après split:", parts)
-            
             if len(parts) != 2 or parts[0].lower() != "bearer":
                 print("ERREUR: Format du token invalide")
                 return JsonResponse({
@@ -40,11 +35,9 @@ def jwt_required(func):
                 }, status=401)
             
             token = parts[1]
-            print("Token extrait:", token)
             
             try:
                 payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-                print("Payload décodé:", payload)
                 
                 if not payload.get('accountId'):
                     print("ERREUR: Pas d'accountId dans le payload")
@@ -55,7 +48,6 @@ def jwt_required(func):
 
                 try:
                     request.user = Account.objects.get(id=payload['accountId'])
-                    print("Utilisateur trouvé:", request.user)
                 except Account.DoesNotExist:
                     print("ERREUR: Compte non trouvé pour l'ID:", payload['accountId'])
                     return JsonResponse({
@@ -65,10 +57,8 @@ def jwt_required(func):
 
                 if 'userType' in payload:
                     request.user_type = payload['userType']
-                    print("Type d'utilisateur:", request.user_type)
                 if 'role' in payload:
                     request.user_role = payload['role']
-                    print("Rôle utilisateur:", request.user_role)
 
             except jwt.ExpiredSignatureError:
                 print("ERREUR: Token expiré")
@@ -91,44 +81,79 @@ def jwt_required(func):
             }, status=500)
         
         print("=== Fin de la vérification JWT ===")
-        return func(request, *args, **kwargs)
+        return view_func(self, request, *args, **kwargs)
     return wrapper
 
 
-def checkRoleToken(roles):
+def checkRoleToken(allowed_roles):
     """
     Décorateur qui vérifie si le compte a un rôle autorisé.
     L'administrateur a toujours accès, quel que soit le rôle requis.
     
     Args:
-        roles: Liste des rôles autorisés
+        allowed_roles: Liste des rôles autorisés
     """
-    def decorator(func):
-        @wraps(func)
-        @jwt_required
-        def wrapper(request, *args, **kwargs):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(self, request, *args, **kwargs):
             try:
-                user = request.user
-                print("user.role",user.role)
-                if not hasattr(user, 'role'):
-                    return ApiResponseClass.error("Accès réservé aux employés", status.HTTP_403_FORBIDDEN)
-                
-                # Vérifier si l'utilisateur est administrateur
-                if user.role == AccountRoleEnum.ADMINISTRATOR.value:
-                    return func(request, *args, **kwargs)
-                
-                # Vérifier le rôle de l'employé si des rôles sont spécifiés
-                if roles:
-                    allowed_roles_values = [role.value if hasattr(role, 'value') else role for role in roles]
+                # Vérifier l'authentification JWT
+                token = request.headers.get("Authorization")
+                if not token:
+                    return ApiResponseClass.error("Token manquant", status.HTTP_401_UNAUTHORIZED)
                     
-                    if user.role not in allowed_roles_values:
+                parts = token.split()
+                if len(parts) != 2 or parts[0].lower() != "bearer":
+                    return ApiResponseClass.error("Format du token invalide", status.HTTP_401_UNAUTHORIZED)
+                
+                token = parts[1]
+                
+                try:
+                    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                    
+                    if not payload.get('accountId'):
+                        return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
+
+                    try:
+                        account = Account.objects.get(id=payload['accountId'])
+                        request.user = account
+                    except Account.DoesNotExist:
+                        return ApiResponseClass.error("Compte non trouvé", status.HTTP_401_UNAUTHORIZED)
+
+                except jwt.ExpiredSignatureError:
+                    return ApiResponseClass.error("Token expiré", status.HTTP_401_UNAUTHORIZED)
+                except jwt.InvalidTokenError as e:
+                    return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
+
+                # Vérification du rôle
+                account_role = account.role
+                
+                # L'administrateur a toujours accès
+                if account_role == AccountRoleEnum.ADMINISTRATOR.name:
+                    return view_func(self, request, *args, **kwargs)
+                
+                # Vérifier si le rôle est autorisé
+                if allowed_roles:
+                    allowed_roles_names = [role.name if hasattr(role, 'name') else role for role in allowed_roles]
+                    if account_role not in allowed_roles_names:
                         return ApiResponseClass.error("Accès non autorisé pour ce rôle", status.HTTP_403_FORBIDDEN)
                 
-                return func(request, *args, **kwargs)
+                return view_func(self, request, *args, **kwargs)
                 
             except Exception as e:
-                print("error",e)
-                return ApiResponseClass.error(str(e), status.HTTP_401_UNAUTHORIZED)
+                print("ERREUR générale:", str(e))
+                return ApiResponseClass.error(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
         return wrapper
     return decorator
+
+
+def get_user_by_email(email):
+    try:
+        user = Account.objects.get(email=email)
+        if email.endswith("@efpl.be"):
+            return user, "employee", getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
+        else:
+            return user, "student", user.role  # Renvoyer le rôle défini dans l'objet User
+    except Account.DoesNotExist:
+        raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 

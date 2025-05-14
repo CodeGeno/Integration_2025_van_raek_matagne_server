@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Section
+from .models import Section, SectionCategory
 from .serializers import SectionSerializer, SectionCreationSerializer
 from api.models import ApiResponseClass
 from django.db.models import Q
@@ -23,15 +23,15 @@ class SectionCreationView(APIView):
             print("Erreurs de validation:", serializer.errors)
             return ApiResponseClass.error("Erreur lors de la création de la section", serializer.errors)
         except ValueError as e:
-            return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+            return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status.HTTP_400_BAD_REQUEST)
         except TypeError as e:
-            return ApiResponseClass.error(f"Erreur de type: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+            return ApiResponseClass.error(f"Erreur de type: {str(e)}", status.HTTP_400_BAD_REQUEST)
         except Section.DoesNotExist:
-            return ApiResponseClass.error("La section demandée n'existe pas", status_code=status.HTTP_404_NOT_FOUND)
+            return ApiResponseClass.error("La section demandée n'existe pas", status.HTTP_404_NOT_FOUND)
         except PermissionError:
-            return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une section", status_code=status.HTTP_403_FORBIDDEN)
+            return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une section", status.HTTP_403_FORBIDDEN)
         except Exception as e:
-            return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}")
+            return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GetAllSectionsView(APIView):
@@ -50,9 +50,11 @@ class GetAllSectionsView(APIView):
                 sections = sections.filter(name__icontains=search_query)
             
             if type_query:
+                # Filtrer directement sur le nom d'énumération
                 sections = sections.filter(sectionType=type_query)
                 
             if category_query:
+                # Filtrer directement sur le nom d'énumération
                 sections = sections.filter(sectionCategory=category_query)
             
             # Pagination
@@ -96,17 +98,30 @@ class UpdateSectionView(APIView):
             # Récupérer la section par son ID
             section = get_object_or_404(Section, id=section_id, isActive=True)
             
+            # Afficher les données reçues pour le débogage
+            print("Données reçues dans la requête PATCH:", request.data)
+            
             # Mettre à jour partiellement la section
             serializer = SectionSerializer(section, data=request.data, partial=True)
 
             if serializer.is_valid():
-                serializer.save()
+                print("Données validées:", serializer.validated_data)
+                section = serializer.save()
+                print("Section après sauvegarde:", section.name, section.sectionType, section.sectionCategory)
                 return ApiResponseClass.success("Section mise à jour avec succès", serializer.data)
-            return ApiResponseClass.error("Erreur lors de la mise à jour de la section", serializer.errors)
+            
+            print("Erreurs de validation:", serializer.errors)
+            # Inclure les détails des erreurs dans la réponse
+            error_details = {}
+            for field, errors in serializer.errors.items():
+                error_details[field] = str(errors)
+            
+            return ApiResponseClass.error(f"Erreur lors de la mise à jour de la section: {error_details}")
         except Section.DoesNotExist:
             return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de la section: {str(e)}")
+            print("Exception lors de la mise à jour:", str(e))
+            return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GetSectionByIdView(APIView):
@@ -120,9 +135,9 @@ class GetSectionByIdView(APIView):
             
             return ApiResponseClass.success("Section récupérée avec succès", serializer.data)
         except Section.DoesNotExist:
-            return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status_code=status.HTTP_404_NOT_FOUND)
+            return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de la section: {str(e)}")
+            return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
     

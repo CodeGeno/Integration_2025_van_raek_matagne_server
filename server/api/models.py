@@ -26,7 +26,11 @@ class ApiResponseClass:
             "success": False,
             "message": message
         }
-        return Response(response, status=status_code)
+        print(f"Type de status_code: {type(status_code)}, Valeur: {status_code}")
+        if isinstance(status_code, int):
+            return Response(response, status=status_code)
+        else:
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def unauthorized(message="Accès non autorisé"):

@@ -31,11 +31,14 @@ class ContactDetailsSerializer(serializers.ModelSerializer):
 class StudentSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     def get_role(self, obj):
-           # Trouver l'énumération correspondant à la valeur stockée
-           for role_enum in AccountRoleEnum:
-               if role_enum.value == obj.role:
-                   return role_enum.name
-           return None
+        # Si le rôle est déjà un nom d'énumération, le retourner directement
+        if obj.role in AccountRoleEnum.__members__:
+            return obj.role
+        # Sinon chercher l'énumération correspondante (ancien format)
+        for role_enum in AccountRoleEnum:
+            if role_enum.value == obj.role:
+                return role_enum.name
+        return None
     contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
    
@@ -46,11 +49,14 @@ class StudentSerializer(serializers.ModelSerializer):
 class StudentCreationSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     def get_role(self, obj):
-           # Trouver l'énumération correspondant à la valeur stockée
-           for role_enum in AccountRoleEnum:
-               if role_enum.value == obj.role:
-                   return role_enum.name
-           return None
+        # Si le rôle est déjà un nom d'énumération, le retourner directement
+        if obj.role in AccountRoleEnum.__members__:
+            return obj.role
+        # Sinon chercher l'énumération correspondante (ancien format)
+        for role_enum in AccountRoleEnum:
+            if role_enum.value == obj.role:
+                return role_enum.name
+        return None
     contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
     class Meta:
@@ -60,11 +66,14 @@ class StudentCreationSerializer(serializers.ModelSerializer):
 class EmployeeCreationSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     def get_role(self, obj):
-           # Trouver l'énumération correspondant à la valeur stockée
-           for role_enum in AccountRoleEnum:
-               if role_enum.value == obj.role:
-                   return role_enum.name
-           return None
+        # Si le rôle est déjà un nom d'énumération, le retourner directement
+        if obj.role in AccountRoleEnum.__members__:
+            return obj.role
+        # Sinon chercher l'énumération correspondante (ancien format)
+        for role_enum in AccountRoleEnum:
+            if role_enum.value == obj.role:
+                return role_enum.name
+        return None
     contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
     class Meta:
@@ -74,11 +83,14 @@ class EmployeeCreationSerializer(serializers.ModelSerializer):
 class EmployeeSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     def get_role(self, obj):
-           # Trouver l'énumération correspondant à la valeur stockée
-           for role_enum in AccountRoleEnum:
-               if role_enum.value == obj.role:
-                   return role_enum.name
-           return None
+        # Si le rôle est déjà un nom d'énumération, le retourner directement
+        if obj.role in AccountRoleEnum.__members__:
+            return obj.role
+        # Sinon chercher l'énumération correspondante (ancien format)
+        for role_enum in AccountRoleEnum:
+            if role_enum.value == obj.role:
+                return role_enum.name
+        return None
     contactDetails = ContactDetailsSerializer()
     address = AddressSerializer()
     class Meta:

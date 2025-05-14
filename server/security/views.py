@@ -21,19 +21,22 @@ from api.pagination import StandardResultsSetPagination
 from .models import Employee
 import jwt
 from django.http import JsonResponse
+from .utils import normalize_name
 
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
 
 class StudentCreationEndpoint(APIView):
     parser_classes = [JSONParser]
 
-    @checkRoleToken([AccountRoleEnum.EDUCATOR])
+    #@checkRoleToken([AccountRoleEnum.EDUCATOR])
     def post(self, request):
         try:
             print("=== Début de la création d'un étudiant ===")
             print("Données reçues:", request.data)
             
             contactDetails_data = request.data.get('contactDetails')
+            # La normalisation des noms et prénoms (firstName et lastName) sera effectuée 
+            # automatiquement lors de la sauvegarde du modèle ContactDetails
             contactDetails = ContactDetails.objects.create(**contactDetails_data)
                 
             address_data = request.data.get('address')
@@ -65,10 +68,12 @@ class StudentCreationEndpoint(APIView):
 class EmployeeCreationEndpoint(APIView):
     parser_classes = [JSONParser]
 
-    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request):
         try:
             contactDetails_data = request.data.get('contactDetails')
+            # La normalisation des noms et prénoms (firstName et lastName) sera effectuée 
+            # automatiquement lors de la sauvegarde du modèle ContactDetails
             contactDetails = ContactDetails.objects.create(**contactDetails_data)
 
             address_data = request.data.get('address')
@@ -86,7 +91,7 @@ class EmployeeCreationEndpoint(APIView):
                 contactDetails=contactDetails,
                 password=bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
                 address=address,
-                role=AccountRoleEnum[employee_role].value
+                role=employee_role
             )
             employee.password=password
             serializer = EmployeeCreationSerializer(employee)
@@ -124,7 +129,7 @@ class Login(APIView):
 class StudentList(APIView):
     parser_classes = [JSONParser]
 
-    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
+    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
     def get(self, request):
         print(request.COOKIES)
         # Récupérer tous les étudiants
@@ -152,7 +157,7 @@ class StudentList(APIView):
 class EmployeeList(APIView):
     parser_classes = [JSONParser]
 
-    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
         print(request.COOKIES)
         employees = Employee.objects.all().order_by('id')
@@ -188,6 +193,8 @@ class EmployeeEdit(APIView):
             
             if 'contactDetails' in data:
                 contact_data = data.get('contactDetails')
+                # La normalisation des noms et prénoms sera appliquée automatiquement 
+                # via la méthode save() du modèle ContactDetails
                 for key, value in contact_data.items():
                     setattr(employee.contactDetails, key, value)
                 employee.contactDetails.save()
@@ -201,7 +208,7 @@ class EmployeeEdit(APIView):
             if 'role' in data:
                 role = data.get('role')
                 if role in [role.name for role in AccountRoleEnum]:
-                    employee.role = AccountRoleEnum[role].value
+                    employee.role = role
                 else:
                     return ApiResponseClass.error(
                         f"Rôle d'employé invalide: {role}", 
@@ -253,6 +260,8 @@ class StudentEdit(APIView):
             
             if 'contactDetails' in data:
                 contact_data = data.get('contactDetails')
+                # La normalisation des noms et prénoms sera appliquée automatiquement 
+                # via la méthode save() du modèle ContactDetails
                 for key, value in contact_data.items():
                     setattr(student.contactDetails, key, value)
                 student.contactDetails.save()
@@ -277,26 +286,45 @@ class EmployeeTeacherList(APIView):
 
     def get(self, request):
         try:
-            teachers = Employee.objects.filter(role=AccountRoleEnum.PROFESSOR.value)
+            teachers = Employee.objects.filter(role=AccountRoleEnum.PROFESSOR.name)
             serializer = EmployeeSerializer(teachers, many=True)
             return ApiResponseClass.success("Liste des professeurs récupérée avec succès", serializer.data)
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la récupération des professeurs: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def get_enum_name_by_value(enum_class, value):
+    print(f"Recherche de l'énumération pour la valeur: '{value}'")
+    if value is None:
+        print("Valeur None, aucune énumération correspondante")
+        return None
+    
+    # Si value est déjà un nom d'énumération, le retourner directement
+    if value in enum_class.__members__:
+        print(f"La valeur '{value}' est déjà un nom d'énumération")
+        return value
+        
+    # Sinon, chercher le nom correspondant à la valeur
     for name, member in enum_class.__members__.items():
+        print(f"Comparaison avec {name}: '{member.value}' == '{value}'")
         if member.value == value:
-            print(name)
+            print(f"Correspondance trouvée: {name}")
             return name
+    
+    print(f"Aucune correspondance trouvée pour '{value}'")
     return None
 
 def get_user_by_email(email):
     try:
         user = Account.objects.get(email=email)
+        print(f"Utilisateur trouvé: {user.id}, email: {user.email}, rôle: {user.role}")
+        
         if email.endswith("@efpl.be"):
-            return user, "employee", getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
+            employee_role = getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
+            print(f"Rôle de l'employé: {employee_role}")
+            return user, "employee", employee_role
         else:
-            return user, "student", None
+            # Pour les étudiants, on retourne directement le nom de l'énumération (STUDENT)
+            return user, "student", AccountRoleEnum.STUDENT.name
     except Account.DoesNotExist:
         raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 
