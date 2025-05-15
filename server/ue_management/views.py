@@ -9,19 +9,16 @@ from django.db.models import Q
 from attendance.models import Attendance, AttendanceStatusEnum
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
 from security.models import Student
-from ue_management.models import Lesson, AcademicUE, Result
-from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer,StudentAcademicUeRegistrationSerializer
+from security.decorators import jwt_required, checkRoleToken
+from security.serializers import StudentSerializer
+from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
+from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer, StudentAcademicUeRegistrationSerializer
 from ue.models import UE
 from section.models import Section
 from section.serializers import SectionSerializer
-from security.models import Student
 from api.models import ApiResponseClass
-from security.serializers import StudentSerializer
-from ue_management.models import StudentAcademicUeRegistrationStatus
-from security.decorators import jwt_required
 
 class AcademicUEListView(APIView):
     parser_classes = [JSONParser]
@@ -137,8 +134,9 @@ class AcademicUEListView(APIView):
             400: openapi.Response(description="Données invalides")
         }
     )
+    @checkRoleToken([])
     def post(self, request):
-        @checkRoleToken()
+        
         try:
             serializer = AcademicUESerializer(data=request.data)
             if serializer.is_valid():
@@ -195,9 +193,9 @@ class AcademicUEDetailView(APIView):
 
 
 class LessonListView(APIView):
-    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     @swagger_auto_schema(
         operation_description="Liste toutes les séances",
         responses={
@@ -391,9 +389,9 @@ class ResultDetailView(APIView):
         return update_result(request, pk)
 
 class AcademicUEGetById(APIView):
-    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     @swagger_auto_schema(
         operation_description="Récupère une UE académique par ID avec ses relations",
         responses={
@@ -415,9 +413,9 @@ class AcademicUEGetById(APIView):
             return ApiResponseClass.error(f"Erreur lors de la récupération de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SectionRegistration(APIView):
-    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     @swagger_auto_schema(
         operation_description="Inscrit un étudiant à une section",
         request_body=openapi.Schema(
@@ -561,9 +559,8 @@ class SectionRegistration(APIView):
             )
 
 class RegisterStudentsToAcademicUE(APIView):
-    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     parser_classes = [JSONParser]
-
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     @swagger_auto_schema(
         operation_description="Inscrit plusieurs étudiants à une UE académique",
         request_body=openapi.Schema(

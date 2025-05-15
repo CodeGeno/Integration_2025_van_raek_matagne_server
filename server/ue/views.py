@@ -6,7 +6,8 @@ from .models import UE
 from .serializers import UESerializer
 from api.models import ApiResponseClass
 from django.db.utils import IntegrityError
-
+from security.decorators import checkRoleToken
+from security.models import AccountRoleEnum
 # Create your views here.
 class GetAllUEsView(APIView):
     @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
