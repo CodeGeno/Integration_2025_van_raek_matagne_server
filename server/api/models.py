@@ -27,9 +27,12 @@ class ApiResponseClass:
             "message": message
         }
         print(f"Type de status_code: {type(status_code)}, Valeur: {status_code}")
+        
+        # Simplifions la logique en nous assurant que status_code est toujours un entier
         if isinstance(status_code, int):
             return Response(response, status=status_code)
         else:
+            # Si ce n'est pas un entier, utiliser le code 400 par défaut
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod

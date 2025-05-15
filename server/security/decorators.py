@@ -12,7 +12,17 @@ SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448
 
 def jwt_required(view_func):
     @wraps(view_func)
-    def wrapper(self, request, *args, **kwargs):
+    def wrapper(*args, **kwargs):
+        # Trouver l'objet request dans les arguments
+        request = None
+        for arg in args:
+            if hasattr(arg, 'headers'):
+                request = arg
+                break
+                
+        if request is None:
+            return ApiResponseClass.error("Objet request introuvable", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
         try:
             print("=== Début de la vérification JWT ===")
             print("Méthode de la requête:", request.method)
@@ -21,18 +31,12 @@ def jwt_required(view_func):
             token = request.headers.get("Authorization")
             if not token:
                 print("ERREUR: Token manquant dans les headers")
-                return JsonResponse({
-                    "error": "Token manquant",
-                    "details": "L'en-tête Authorization est requis pour cette requête"
-                }, status=401)
+                return ApiResponseClass.error("Token manquant", status.HTTP_401_UNAUTHORIZED)
                 
             parts = token.split()
             if len(parts) != 2 or parts[0].lower() != "bearer":
                 print("ERREUR: Format du token invalide")
-                return JsonResponse({
-                    "error": "Format du token invalide",
-                    "details": "Le token doit être au format 'Bearer <token>'"
-                }, status=401)
+                return ApiResponseClass.error("Format du token invalide", status.HTTP_401_UNAUTHORIZED)
             
             token = parts[1]
             
@@ -41,19 +45,13 @@ def jwt_required(view_func):
                 
                 if not payload.get('accountId'):
                     print("ERREUR: Pas d'accountId dans le payload")
-                    return JsonResponse({
-                        "error": "Token invalide",
-                        "details": "Le token ne contient pas d'identifiant de compte"
-                    }, status=401)
+                    return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
 
                 try:
                     request.user = Account.objects.get(id=payload['accountId'])
                 except Account.DoesNotExist:
                     print("ERREUR: Compte non trouvé pour l'ID:", payload['accountId'])
-                    return JsonResponse({
-                        "error": "Compte non trouvé",
-                        "details": f"Aucun compte trouvé avec l'ID {payload['accountId']}"
-                    }, status=401)
+                    return ApiResponseClass.error("Compte non trouvé", status.HTTP_401_UNAUTHORIZED)
 
                 if 'userType' in payload:
                     request.user_type = payload['userType']
@@ -62,26 +60,17 @@ def jwt_required(view_func):
 
             except jwt.ExpiredSignatureError:
                 print("ERREUR: Token expiré")
-                return JsonResponse({
-                    "error": "Token expiré",
-                    "details": "Le token a expiré, veuillez vous reconnecter"
-                }, status=401)
+                return ApiResponseClass.error("Token expiré", status.HTTP_401_UNAUTHORIZED)
             except jwt.InvalidTokenError as e:
                 print("ERREUR: Token invalide:", str(e))
-                return JsonResponse({
-                    "error": "Token invalide",
-                    "details": str(e)
-                }, status=401)
+                return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
 
         except Exception as e:
             print("ERREUR générale:", str(e))
-            return JsonResponse({
-                "error": "Erreur d'authentification",
-                "details": str(e)
-            }, status=500)
+            return ApiResponseClass.error(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         print("=== Fin de la vérification JWT ===")
-        return view_func(self, request, *args, **kwargs)
+        return view_func(*args, **kwargs)
     return wrapper
 
 
@@ -95,7 +84,17 @@ def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
     """
     def decorator(view_func):
         @wraps(view_func)
-        def wrapper(self, request, *args, **kwargs):
+        def wrapper(*args, **kwargs):
+            # Trouver l'objet request dans les arguments
+            request = None
+            for arg in args:
+                if hasattr(arg, 'headers'):
+                    request = arg
+                    break
+                    
+            if request is None:
+                return ApiResponseClass.error("Objet request introuvable", status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
             try:
                 # Vérifier l'authentification JWT
                 token = request.headers.get("Authorization")
@@ -120,7 +119,7 @@ def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
                         request.user = account
                         # L'administrateur a toujours accès
                         if account.role == AccountRoleEnum.ADMINISTRATOR.name:
-                            return view_func(self, request, *args, **kwargs)
+                            return view_func(*args, **kwargs)
                     
 
                     
@@ -143,7 +142,7 @@ def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
                     if account_role not in allowed_roles_names:
                         return ApiResponseClass.error("Accès non autorisé pour ce rôle", status.HTTP_403_FORBIDDEN)
                 
-                return view_func(self, request, *args, **kwargs)
+                return view_func(*args, **kwargs)
                 
             except Exception as e:
                 print("ERREUR générale:", str(e))

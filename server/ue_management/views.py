@@ -282,29 +282,65 @@ class ResultListView(APIView):
     def post(self, request):
         def create_result(request):
             try:
-                # Validation des règles métier
+                # Validation des données requises
+                studentid = request.data.get('studentid')
+                academicsueId = request.data.get('academicsueId')
                 result_value = request.data.get('result')
                 period_value = request.data.get('period')
+                isExempt=request.data.get('isexempt', False)
+                # Vérification que les données nécessaires sont présentes
+                
+                # Vérification de l'existence de l'étudiant
+                try:
+                    student = Student.objects.get(id=studentid)
+                except Student.DoesNotExist:
+                    return ApiResponseClass.error(
+                        f"Étudiant avec l'ID {studentid} non trouvé",
+                        status.HTTP_404_NOT_FOUND
+                    )
+                
+                # Vérification de l'existence de l'UE académique
+                try:
+                    academic_ue = AcademicUE.objects.get(id=academicsueId)
+                except AcademicUE.DoesNotExist:
+                    return ApiResponseClass.error(
+                        f"UE académique avec l'ID {academicsueId} non trouvée",
+                        status.HTTP_404_NOT_FOUND
+                    )
 
                 # Vérifier que result est dans la plage valide (period * 10)
-                if period_value and result_value:
-                    max_result = period_value * 10
-                    min_result = max_result / 2  # 50% pour réussir
-
+                max_result = period_value * 10
+                min_result = max_result / 2  # 50% pour réussir
+                print("min_result",min_result,"max_result",max_result)
+                
+                if not isExempt:
                     if not (min_result <= result_value <= max_result):
                         return ApiResponseClass.error(
-                            f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
-                            status_code=status.HTTP_400_BAD_REQUEST
+                            f"Le résultat doit être entre {min_result} et {max_result} ",
+                            status.HTTP_400_BAD_REQUEST
                         )
-
-                serializer = ResultSerializer(data=request.data)
-                if serializer.is_valid():
-                    serializer.save()
-                    return ApiResponseClass.created("Résultat créé avec succès", serializer.data)
-                return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+                
+                # Déterminer si l'étudiant a réussi (success = True si result >= min_result)
+                is_success = True
+                if not isExempt and result_value is not None:
+                    is_success = result_value >= min_result
+                
+                # Création du résultat
+                result = Result.objects.create(
+                    result=result_value,
+                    period=period_value,
+                    student=student,
+                    academicsUE=academic_ue,
+                    success=is_success,
+                    isExempt=request.data.get('isexempt', False)
+                )
+                
+                serializer = ResultSerializer(result)
+                
+                return ApiResponseClass.created("Résultat créé avec succès", serializer.data)
             except Exception as e:
                 return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}",
-                                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                                            status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return create_result(request)
 
@@ -355,27 +391,42 @@ class ResultDetailView(APIView):
     def patch(self, request, pk):
         @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
         def update_result(request, pk):
+            
             try:
                 result = get_object_or_404(Result, pk=pk)
-
+                if request.data.get('approved', False)==True:
+                    serializer = ResultSerializer(result, data=request.data, partial=True)
+                    if serializer.is_valid():
+                        serializer.save()
+                        return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
                 if hasattr(result, 'approved') and result.approved:
                     return ApiResponseClass.error(
                         "Ce résultat a déjà été approuvé et ne peut être modifié",
-                        status_code=status.HTTP_403_FORBIDDEN
+                        status.HTTP_403_FORBIDDEN
                     )
 
                 result_value = request.data.get('result')
+               
                 period_value = request.data.get('period', result.period)
 
-                if result_value:
-                    max_result = period_value * 10
-                    min_result = max_result / 2
-
-                    if not (min_result <= result_value <= max_result):
+                # Vérifier que result est dans la plage valide (period * 10)
+                max_result = period_value * 10
+                min_result = max_result / 2  # 50% pour réussir
+                
+                if not result.isExempt and result_value is not None:
+                    if not (min_result <= float(result_value) <= max_result):
                         return ApiResponseClass.error(
-                            f"Le résultat doit être entre {min_result} et {max_result} pour {period_value} périodes",
-                            status_code=status.HTTP_400_BAD_REQUEST
+                            f"Le résultat doit être entre {min_result} et {max_result} ",
+                            status.HTTP_400_BAD_REQUEST
                         )
+
+                # Déterminer si l'étudiant a réussi (success = True si result >= min_result)
+                
+                if not result.isExempt and result_value is not None:
+                    is_success = float(result_value) >= min_result
+                is_success = True    
+                # Mise à jour manuelle du champ success
+                request.data['success'] = is_success
 
                 serializer = ResultSerializer(result, data=request.data, partial=True)
                 if serializer.is_valid():
@@ -383,8 +434,10 @@ class ResultDetailView(APIView):
                     return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
                 return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
             except Exception as e:
-                return ApiResponseClass.error(f"Erreur lors de la mise à jour: {str(e)}",
-                                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return ApiResponseClass.error(
+                    f"Erreur lors de la mise à jour: {str(e)}",
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
         return update_result(request, pk)
 
@@ -641,7 +694,7 @@ class GetStudentResults(APIView):
             404: openapi.Response(description="Aucun résultat trouvé")
         }
     )
-    @jwt_required
+   
     def get(self, request, academic_ue, student):
         try:
             results = Result.objects.filter(
@@ -650,8 +703,7 @@ class GetStudentResults(APIView):
             )
             
             if not results.exists():
-                return ApiResponseClass.error("Aucun résultat trouvé", status.HTTP_404_NOT_FOUND)
-
+                return ApiResponseClass.success("Aucun résultat trouvé", [])
             serializer = ResultSerializer(results, many=True)
             return ApiResponseClass.success("Résultats récupérés avec succès", serializer.data)
 
