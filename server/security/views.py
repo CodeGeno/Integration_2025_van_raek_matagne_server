@@ -23,12 +23,22 @@ import jwt
 from django.http import JsonResponse
 from .utils import normalize_name
 
+# Fonction déplacée de decorators.py pour éviter l'importation circulaire
+def get_user_by_email(email):
+    try:
+        user = Account.objects.get(email=email)
+        if email.endswith("@efpl.be"):
+            return user, "employee", getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
+        else:
+            return user, "student", user.role  # Renvoyer le rôle défini dans l'objet User
+    except Account.DoesNotExist:
+        raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
+
 SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
 
 class StudentCreationEndpoint(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.EDUCATOR])
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def post(self, request):
         try:
             print("=== Début de la création d'un étudiant ===")
@@ -67,8 +77,7 @@ class StudentCreationEndpoint(APIView):
 
 class EmployeeCreationEndpoint(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    @checkRoleToken()
     def post(self, request):
         try:
             contactDetails_data = request.data.get('contactDetails')
@@ -112,14 +121,18 @@ class Login(APIView):
         try:
             user, user_type, user_role = get_user_by_email(email)
             
+            # Récupérer le nom d'énumération du rôle
+            role_name = get_enum_name_by_value(AccountRoleEnum, user_role)
+            
             payload = {
-                'accountId': user.id
+                'accountId': user.id,
+                'role': role_name  # Ajouter le rôle dans le token
             }
             jwt_token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
             
             response_data = {
                 "token": jwt_token,
-                "role": get_enum_name_by_value(AccountRoleEnum, user_role)
+                "role": role_name
             }
            
             return ApiResponseClass.success("Token généré avec succès", response_data)
@@ -128,8 +141,7 @@ class Login(APIView):
 
 class StudentList(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def get(self, request):
         print(request.COOKIES)
         # Récupérer tous les étudiants
@@ -156,8 +168,7 @@ class StudentList(APIView):
 
 class EmployeeList(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
         print(request.COOKIES)
         employees = Employee.objects.all().order_by('id')
@@ -185,7 +196,7 @@ class EmployeeList(APIView):
 
 class EmployeeEdit(APIView):
     parser_classes = [JSONParser]
-
+    @checkRoleToken()
     def patch(self, request, employee_id):
         try:
             employee = Employee.objects.get(id=employee_id)
@@ -238,6 +249,7 @@ class EmployeeGetById(APIView):
             return ApiResponseClass.error(f"Erreur lors de la récupération: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class StudentGetById(APIView):
+    
     parser_classes = [JSONParser]
 
     def get(self, request, id):
@@ -252,7 +264,7 @@ class StudentGetById(APIView):
 
 class StudentEdit(APIView):
     parser_classes = [JSONParser]
-
+    @checkRoleToken()
     def patch(self, request, student_id):
         try:
             student = Student.objects.get(id=student_id)
@@ -344,19 +356,4 @@ def get_enum_name_by_value(enum_class, value):
     
     print(f"Aucune correspondance trouvée pour '{value}'")
     return None
-
-def get_user_by_email(email):
-    try:
-        user = Account.objects.get(email=email)
-        print(f"Utilisateur trouvé: {user.id}, email: {user.email}, rôle: {user.role}")
-        
-        if email.endswith("@efpl.be"):
-            employee_role = getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
-            print(f"Rôle de l'employé: {employee_role}")
-            return user, "employee", employee_role
-        else:
-            # Pour les étudiants, on retourne directement le nom de l'énumération (STUDENT)
-            return user, "student", AccountRoleEnum.STUDENT.name
-    except Account.DoesNotExist:
-        raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 

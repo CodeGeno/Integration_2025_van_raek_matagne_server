@@ -85,13 +85,13 @@ def jwt_required(view_func):
     return wrapper
 
 
-def checkRoleToken(allowed_roles):
+def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
     """
     Décorateur qui vérifie si le compte a un rôle autorisé.
     L'administrateur a toujours accès, quel que soit le rôle requis.
     
     Args:
-        allowed_roles: Liste des rôles autorisés
+        allowed_roles: Liste des rôles autorisés (optionnel)
     """
     def decorator(view_func):
         @wraps(view_func)
@@ -116,7 +116,14 @@ def checkRoleToken(allowed_roles):
 
                     try:
                         account = Account.objects.get(id=payload['accountId'])
+                        print(account.role)
                         request.user = account
+                        # L'administrateur a toujours accès
+                        if account.role == AccountRoleEnum.ADMINISTRATOR.name:
+                            return view_func(self, request, *args, **kwargs)
+                    
+
+                    
                     except Account.DoesNotExist:
                         return ApiResponseClass.error("Compte non trouvé", status.HTTP_401_UNAUTHORIZED)
 
@@ -128,9 +135,7 @@ def checkRoleToken(allowed_roles):
                 # Vérification du rôle
                 account_role = account.role
                 
-                # L'administrateur a toujours accès
-                if account_role == AccountRoleEnum.ADMINISTRATOR.name:
-                    return view_func(self, request, *args, **kwargs)
+              
                 
                 # Vérifier si le rôle est autorisé
                 if allowed_roles:
@@ -145,15 +150,4 @@ def checkRoleToken(allowed_roles):
                 return ApiResponseClass.error(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
         return wrapper
     return decorator
-
-
-def get_user_by_email(email):
-    try:
-        user = Account.objects.get(email=email)
-        if email.endswith("@efpl.be"):
-            return user, "employee", getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
-        else:
-            return user, "student", user.role  # Renvoyer le rôle défini dans l'objet User
-    except Account.DoesNotExist:
-        raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 

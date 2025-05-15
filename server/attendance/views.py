@@ -17,6 +17,7 @@ from ue_management.serializers import AcademicUESerializer, LessonDetailSerializ
 from ue.serializers import UESerializer
 
 class AttendanceListByLessonIdView(APIView):
+    @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.EDUCATOR])
     def get(self, request, lessonId):
         lesson = get_object_or_404(Lesson, id=lessonId)
         attendances = Attendance.objects.filter(lesson=lesson)
@@ -42,7 +43,7 @@ class AttendanceListByLessonIdView(APIView):
 
 
 class AttendanceUpsertView(APIView):
-    @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.ADMINISTRATOR])
+    @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.EDUCATOR])
     def post(self, request):
         # Vérifier si les données envoyées sont une liste
         if isinstance(request.data, list):
@@ -135,7 +136,7 @@ class AttendanceUpsertView(APIView):
             return ApiResponseClass.error(serializer.errors)
     
 class AttendanceValidationView(APIView):
-    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.EDUCATOR])
     def post(self, request):
         # Vérifier si les données envoyées sont une liste
         if isinstance(request.data, list):
@@ -180,6 +181,7 @@ class AttendanceValidationView(APIView):
 
 
 class StudentAcademicUeDropoutView(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def post(self, request, academicUeId, studentId):
         try:
             # Vérification de l'existence de l'UE académique et de l'étudiant
@@ -191,11 +193,11 @@ class StudentAcademicUeDropoutView(APIView):
                     attendance, created = Attendance.objects.get_or_create(
                         lesson=lesson,
                         student=student,
-                        defaults={'status': AttendanceStatusEnum.DROPPEDOUT.value}
+                        defaults={'status': AttendanceStatusEnum.ABANDON.value}
                     )
                     if not created:
                         # Mettre à jour le statut de présence existant
-                        attendance.status = AttendanceStatusEnum.DROPPEDOUT.value
+                        attendance.status = AttendanceStatusEnum.ABANDON.value
                         attendance.save()
                 
                 # Mettre à jour le statut de l'étudiant dans l'UE
@@ -206,7 +208,7 @@ class StudentAcademicUeDropoutView(APIView):
                     {
                         "student_id": studentId,
                         "academic_ue_id": academicUeId,
-                        "status": "DROPPEDOUT"
+                        "status": "ABANDON"
                     }
                 )
             else:

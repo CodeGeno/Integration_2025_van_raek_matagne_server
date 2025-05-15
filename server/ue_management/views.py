@@ -9,19 +9,16 @@ from django.db.models import Q
 from attendance.models import Attendance, AttendanceStatusEnum
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework.decorators import api_view
 from security.entities.accountTypeEnum import AccountRoleEnum
 from security.models import Student
-from ue_management.models import Lesson, AcademicUE, Result
-from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer,StudentAcademicUeRegistrationSerializer
+from security.decorators import jwt_required, checkRoleToken
+from security.serializers import StudentSerializer
+from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
+from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer, StudentAcademicUeRegistrationSerializer
 from ue.models import UE
 from section.models import Section
 from section.serializers import SectionSerializer
-from security.models import Student
 from api.models import ApiResponseClass
-from security.serializers import StudentSerializer
-from ue_management.models import StudentAcademicUeRegistrationStatus
-from security.decorators import jwt_required
 
 class AcademicUEListView(APIView):
     parser_classes = [JSONParser]
@@ -137,7 +134,9 @@ class AcademicUEListView(APIView):
             400: openapi.Response(description="Données invalides")
         }
     )
+    @checkRoleToken([])
     def post(self, request):
+        
         try:
             serializer = AcademicUESerializer(data=request.data)
             if serializer.is_valid():
@@ -149,55 +148,6 @@ class AcademicUEListView(APIView):
             return ApiResponseClass.error(f"Erreur lors de la création de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GenerateNextYearUEsView(APIView):
-    parser_classes = [JSONParser]
-
-    @swagger_auto_schema(
-        operation_description="Génère les UE académiques pour l'année suivante",
-        responses={
-            201: openapi.Response(
-                description="UEs académiques générées avec succès",
-                schema=AcademicUESerializer(many=True)
-            ),
-            400: openapi.Response(description="Erreur lors de la génération")
-        }
-    )
-    def post(self, request):
-        try:
-            # Récupérer l'année actuelle
-            current_year = datetime.now().year
-            next_year = current_year + 1
-
-            # Récupérer toutes les UE actives
-            active_ues = UE.objects.filter(isActive=True)
-
-            # Calculer les dates de début et de fin pour l'année suivante
-            start_date = datetime(next_year, 9, 15)  # 15 septembre
-            end_date = datetime(next_year, 6, 30)    # 30 juin
-
-            created_ues = []
-            for ue in active_ues:
-                # Vérifier si l'UE académique existe déjà pour l'année suivante
-                if not AcademicUE.objects.filter(ue=ue, year=next_year).exists():
-                    academic_ue = AcademicUE.objects.create(
-                        year=next_year,
-                        start_date=start_date,
-                        end_date=end_date,
-                        ue=ue
-                    )
-                    created_ues.append(academic_ue)
-
-            serializer = AcademicUESerializer(created_ues, many=True)
-            return ApiResponseClass.created(
-                f"{len(created_ues)} UEs académiques générées avec succès pour l'année {next_year}",
-                serializer.data
-            )
-
-        except Exception as e:
-            return ApiResponseClass.error(
-                f"Erreur lors de la génération des UEs académiques: {str(e)}",
-                status.HTTP_400_BAD_REQUEST
-            )
 
 
 class AcademicUEDetailView(APIView):
@@ -245,6 +195,7 @@ class AcademicUEDetailView(APIView):
 class LessonListView(APIView):
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     @swagger_auto_schema(
         operation_description="Liste toutes les séances",
         responses={
@@ -329,7 +280,6 @@ class ResultListView(APIView):
         }
     )
     def post(self, request):
-        #@has_employee_role([AccountRoleEnum.ADMINISTRATOR])
         def create_result(request):
             try:
                 # Validation des règles métier
@@ -403,7 +353,7 @@ class ResultDetailView(APIView):
         }
     )
     def patch(self, request, pk):
-        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
         def update_result(request, pk):
             try:
                 result = get_object_or_404(Result, pk=pk)
@@ -441,6 +391,7 @@ class ResultDetailView(APIView):
 class AcademicUEGetById(APIView):
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     @swagger_auto_schema(
         operation_description="Récupère une UE académique par ID avec ses relations",
         responses={
@@ -464,6 +415,7 @@ class AcademicUEGetById(APIView):
 class SectionRegistration(APIView):
     parser_classes = [JSONParser]
 
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     @swagger_auto_schema(
         operation_description="Inscrit un étudiant à une section",
         request_body=openapi.Schema(
@@ -481,7 +433,7 @@ class SectionRegistration(APIView):
             404: openapi.Response(description="Étudiant ou section non trouvé")
         }
     )
-    def post(self, request):
+    def post(self, request, id=None):
         try:
             required_fields = ['studentId', 'sectionId', 'cycle']
             missing_fields = [field for field in required_fields if not request.data.get(field)]
@@ -608,7 +560,7 @@ class SectionRegistration(APIView):
 
 class RegisterStudentsToAcademicUE(APIView):
     parser_classes = [JSONParser]
-
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     @swagger_auto_schema(
         operation_description="Inscrit plusieurs étudiants à une UE académique",
         request_body=openapi.Schema(
@@ -731,5 +683,215 @@ class GetStudentAcademicUEs(APIView):
         except Exception as e:
             return ApiResponseClass.error(
                 f"Erreur lors de la récupération des UE académiques: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class GetEligibleStudentsForAcademicUE(APIView):
+    parser_classes = [JSONParser]
+
+    @swagger_auto_schema(
+        operation_description="Récupère tous les étudiants éligibles pour une UE académique",
+        manual_parameters=[
+            openapi.Parameter(
+                'search',
+                openapi.IN_QUERY,
+                description="Terme de recherche pour filtrer les étudiants",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="Numéro de page pour la pagination",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="Nombre d'éléments par page",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Liste des étudiants éligibles récupérée avec succès",
+                schema=StudentAcademicUeRegistrationSerializer(many=True)
+            ),
+            404: openapi.Response(description="UE académique non trouvée")
+        }
+    )
+    def get(self, request, academicUeId):
+        try:
+            # Validation de l'ID d'UE académique
+            if academicUeId <= 0:
+                return ApiResponseClass.error(
+                    "L'ID de l'UE académique doit être un nombre positif", 
+                    status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Récupération des paramètres de filtrage
+            search = request.query_params.get('search', '')
+            
+            try:
+                page = int(request.query_params.get('page', '1'))
+                if page < 1:
+                    page = 1
+            except ValueError:
+                page = 1
+                
+            try:
+                page_size = int(request.query_params.get('page_size', '25'))
+                page_size = min(max(page_size, 1), 25)  # Limites : minimum 1, maximum 25
+            except ValueError:
+                page_size = 25
+
+            # Vérification de l'existence de l'UE académique
+            academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
+
+            # Construction de la requête de base en excluant les étudiants déjà inscrits
+            query = Student.objects.exclude(enrolled_ues=academic_ue)
+            
+            # Application du filtre de recherche
+            if search:
+                query = query.filter(
+                    Q(contactDetails__firstName__icontains=search) |
+                    Q(contactDetails__lastName__icontains=search) |
+                    Q(identifier__icontains=search) |
+                    Q(email__icontains=search)
+                )
+
+            # Calcul de la pagination
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+
+            # Récupération des résultats paginés
+            total_count = query.count()
+            
+            # Vérifier s'il y a des résultats
+            if total_count == 0:
+                return ApiResponseClass.success(
+                    "Aucun étudiant éligible trouvé", 
+                    {"students": [], "pagination": {"count": 0, "page": page, "page_size": page_size, "total_pages": 0}}
+                )
+                
+            students = query[start_index:end_index]
+            
+            # Préparation des données des étudiants avec leur statut
+            student_data = []
+            for student in students:
+               
+                status = StudentAcademicUeRegistrationStatus.AP.value  # Par défaut, on considère que l'étudiant a tous les prérequis
+                
+                # Vérification des prérequis
+                if academic_ue.ue.prerequisites.exists():
+                    for prerequisite in academic_ue.ue.prerequisites.all():
+                        # Vérifier si l'étudiant a un résultat pour ce prérequis
+                        has_result = Result.objects.filter(
+                            academicsUE__ue=prerequisite,
+                            student=student,
+                            success=True
+                        ).exists()
+                        
+                        if not has_result:
+                            status = StudentAcademicUeRegistrationStatus.NP.value
+                            break
+                
+                # Ajout des données de l'étudiant avec son statut
+                student_serializer = StudentAcademicUeRegistrationSerializer(student)
+                student_dict = student_serializer.data
+                student_dict['status'] = status
+                student_data.append(student_dict)
+            
+            # Préparation des métadonnées de pagination
+            
+            return ApiResponseClass.success(
+                "Liste des étudiants éligibles récupérée avec succès", 
+                student_data
+            )
+        except Student.DoesNotExist:
+            return ApiResponseClass.error("Étudiants non trouvés", status.HTTP_404_NOT_FOUND)
+        except ValueError as e:
+            return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            return ApiResponseClass.error(
+                f"Erreur lors de la récupération des étudiants éligibles: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"details": error_details}
+            )
+
+class StudentAcademicUeRegistration(APIView):
+    parser_classes = [JSONParser]
+
+    @swagger_auto_schema(
+        operation_description="Inscrit un étudiant à une UE académique",
+        responses={
+            201: openapi.Response(
+                description="Inscription réussie",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'student_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'academic_ue_id': openapi.Schema(type=openapi.TYPE_INTEGER)
+                    }
+                )
+            ),
+            400: openapi.Response(description="L'étudiant n'a pas tous les prérequis nécessaires"),
+            404: openapi.Response(description="Étudiant ou UE académique non trouvé"),
+            500: openapi.Response(description="Erreur lors de l'inscription")
+        }
+    )
+    def post(self, request, academicUeId, studentId):
+        try:
+            # Vérification de l'existence de l'UE académique et de l'étudiant
+            student = get_object_or_404(Student, id=studentId)
+            academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
+            
+            # Vérification si l'étudiant est déjà inscrit
+            if academic_ue.students.filter(id=studentId).exists():
+                return ApiResponseClass.error(
+                    "L'étudiant est déjà inscrit à cette UE académique",
+                    status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Vérification des prérequis
+            has_all_prerequisites = True
+            missing_prerequisites = []
+            
+            if academic_ue.ue.prerequisites.exists():
+                for prerequisite in academic_ue.ue.prerequisites.all():
+                    # Vérifier si l'étudiant a un résultat pour ce prérequis
+                    has_result = Result.objects.filter(
+                        academicsUE__ue=prerequisite,
+                        student=student,
+                        success=True
+                    ).exists()
+                    
+                    if not has_result:
+                        has_all_prerequisites = False
+                        missing_prerequisites.append(prerequisite.name)
+
+            # Si l'étudiant a tous les prérequis, l'inscrire dans l'UE académique
+            if has_all_prerequisites:
+                academic_ue.students.add(student)
+                return ApiResponseClass.created(
+                    "Inscription réussie - L'étudiant a été inscrit à l'UE académique",
+                    {
+                        "student_id": student.id, 
+                        "academic_ue_id": academic_ue.id
+                    }
+                )
+            else:
+                return ApiResponseClass.error(
+                    f"L'étudiant n'a pas tous les prérequis nécessaires: {', '.join(missing_prerequisites)}",
+                    status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de l'inscription: {str(e)}", 
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
