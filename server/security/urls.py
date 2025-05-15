@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StudentCreationEndpoint, EmployeeCreationEndpoint, Login, StudentList, EmployeeList, EmployeeEdit, EmployeeGetById, StudentGetById, StudentEdit, EmployeeTeacherList # Importez votre vue
+from .views import StudentCreationEndpoint, EmployeeCreationEndpoint, Login, StudentList, EmployeeList, EmployeeEdit, EmployeeGetById, StudentGetById, StudentEdit, EmployeeTeacherList, ChangePassword # Importez votre vue
 
 
 urlpatterns = [ 
@@ -13,5 +13,6 @@ urlpatterns = [
     path('employee/edit/<int:employee_id>/', EmployeeEdit.as_view(), name='edit-employee'),
     path('employee/<int:employee_id>/', EmployeeGetById.as_view(), name='get-employee'),
     path('employee/teacher/list/', EmployeeTeacherList.as_view(), name='list-employee-teacher'),
+    path('change-password/', ChangePassword.as_view(), name='change-password'),
 ]
 

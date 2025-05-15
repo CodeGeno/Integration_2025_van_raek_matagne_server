@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/ue/', include('ue.urls')),
     path('api/ue-management/', include('ue_management.urls')),
     path('api/attendance/', include('attendance.urls')),
+    path('api/dashboard/', include('dashboard.urls')),
 
 # Documentation Swagger/OpenAPI
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
