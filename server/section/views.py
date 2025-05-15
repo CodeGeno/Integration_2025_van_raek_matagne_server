@@ -10,6 +10,7 @@ from api.pagination import StandardResultsSetPagination
 # Create your views here.
 
 class SectionCreationView(APIView):
+    @checkRoleToken()
     def post(self, request):
         try:
             print(request.data)
@@ -35,6 +36,7 @@ class SectionCreationView(APIView):
 
 
 class GetAllSectionsView(APIView):
+    @checkRoleToken()
     def get(self, request):
         try:
             # Récupérer toutes les sections actives
@@ -75,6 +77,7 @@ class GetAllSectionsView(APIView):
 
 
 class DeleteSectionView(APIView):
+    @checkRoleToken()
     def delete(self, request, section_id):
         try:
             # Récupérer la section par son ID
@@ -93,6 +96,7 @@ class DeleteSectionView(APIView):
 
 
 class UpdateSectionView(APIView):
+    @checkRoleToken()
     def patch(self, request, section_id):
         try:
             # Récupérer la section par son ID

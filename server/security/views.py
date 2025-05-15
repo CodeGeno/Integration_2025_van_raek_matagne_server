@@ -27,8 +27,7 @@ SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448
 
 class StudentCreationEndpoint(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.EDUCATOR])
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def post(self, request):
         try:
             print("=== Début de la création d'un étudiant ===")
@@ -66,9 +65,8 @@ class StudentCreationEndpoint(APIView):
             return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EmployeeCreationEndpoint(APIView):
+    @checkRoleToken()
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request):
         try:
             contactDetails_data = request.data.get('contactDetails')
@@ -127,9 +125,10 @@ class Login(APIView):
             return ApiResponseClass.unauthorized("Identifiants invalides")
 
 class StudentList(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     parser_classes = [JSONParser]
 
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR])
+  
     def get(self, request):
         print(request.COOKIES)
         # Récupérer tous les étudiants
@@ -156,8 +155,7 @@ class StudentList(APIView):
 
 class EmployeeList(APIView):
     parser_classes = [JSONParser]
-
-    #@checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
         print(request.COOKIES)
         employees = Employee.objects.all().order_by('id')
@@ -184,6 +182,7 @@ class EmployeeList(APIView):
         )
 
 class EmployeeEdit(APIView):
+    @checkRoleToken()
     parser_classes = [JSONParser]
 
     def patch(self, request, employee_id):
@@ -238,6 +237,7 @@ class EmployeeGetById(APIView):
             return ApiResponseClass.error(f"Erreur lors de la récupération: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class StudentGetById(APIView):
+    
     parser_classes = [JSONParser]
 
     def get(self, request, id):
@@ -252,7 +252,7 @@ class StudentGetById(APIView):
 
 class StudentEdit(APIView):
     parser_classes = [JSONParser]
-
+    @checkRoleToken()
     def patch(self, request, student_id):
         try:
             student = Student.objects.get(id=student_id)

@@ -138,6 +138,7 @@ class AcademicUEListView(APIView):
         }
     )
     def post(self, request):
+        @checkRoleToken()
         try:
             serializer = AcademicUESerializer(data=request.data)
             if serializer.is_valid():
@@ -194,6 +195,7 @@ class AcademicUEDetailView(APIView):
 
 
 class LessonListView(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
@@ -280,7 +282,6 @@ class ResultListView(APIView):
         }
     )
     def post(self, request):
-        #@has_employee_role([AccountRoleEnum.ADMINISTRATOR])
         def create_result(request):
             try:
                 # Validation des règles métier
@@ -354,7 +355,7 @@ class ResultDetailView(APIView):
         }
     )
     def patch(self, request, pk):
-        @has_employee_role([AccountRoleEnum.ADMINISTRATOR])
+        @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
         def update_result(request, pk):
             try:
                 result = get_object_or_404(Result, pk=pk)
@@ -390,6 +391,7 @@ class ResultDetailView(APIView):
         return update_result(request, pk)
 
 class AcademicUEGetById(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
@@ -413,6 +415,7 @@ class AcademicUEGetById(APIView):
             return ApiResponseClass.error(f"Erreur lors de la récupération de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SectionRegistration(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
@@ -558,6 +561,7 @@ class SectionRegistration(APIView):
             )
 
 class RegisterStudentsToAcademicUE(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(

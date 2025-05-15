@@ -9,6 +9,7 @@ from django.db.utils import IntegrityError
 
 # Create your views here.
 class GetAllUEsView(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     def get(self, request):
         try:
             ues = UE.objects.all()
@@ -18,6 +19,7 @@ class GetAllUEsView(APIView):
             return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des UEs: {str(e)}")
     
 class GetUEByIdView(APIView):
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
     def get(self, request, ue_id):
         try:
             ue = get_object_or_404(UE, id=ue_id)
@@ -27,6 +29,7 @@ class GetUEByIdView(APIView):
             return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération de l'UE: {str(e)}")
        
 class UECreationView(APIView):
+    @checkRoleToken()
     def post(self, request):
         try:
             # Extraire les prérequis de la requête
@@ -78,6 +81,7 @@ class UECreationView(APIView):
             return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UpdateUEAndPrerequisitesView(APIView):
+    @checkRoleToken()
     def patch(self, request, ue_id):
         try:
             ue = get_object_or_404(UE, id=ue_id)
@@ -119,6 +123,7 @@ class UpdateUEAndPrerequisitesView(APIView):
             return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de l'UE et des prérequis: {str(e)}")
 
 class DeleteUEView(APIView):
+    @checkRoleToken()
     def delete(self, request, ue_id):
         try:
             ue = get_object_or_404(UE, id=ue_id)
