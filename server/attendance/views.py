@@ -191,11 +191,11 @@ class StudentAcademicUeDropoutView(APIView):
                     attendance, created = Attendance.objects.get_or_create(
                         lesson=lesson,
                         student=student,
-                        defaults={'status': AttendanceStatusEnum.DROPPEDOUT.value}
+                        defaults={'status': AttendanceStatusEnum.ABANDON.value}
                     )
                     if not created:
                         # Mettre à jour le statut de présence existant
-                        attendance.status = AttendanceStatusEnum.DROPPEDOUT.value
+                        attendance.status = AttendanceStatusEnum.ABANDON.value
                         attendance.save()
                 
                 # Mettre à jour le statut de l'étudiant dans l'UE
@@ -206,7 +206,7 @@ class StudentAcademicUeDropoutView(APIView):
                     {
                         "student_id": studentId,
                         "academic_ue_id": academicUeId,
-                        "status": "DROPPEDOUT"
+                        "status": "ABANDON"
                     }
                 )
             else:
