@@ -25,8 +25,12 @@ def jwt_required(view_func):
             
         try:
             print("=== Début de la vérification JWT ===")
-            print("Méthode de la requête:", request.method)
-            print("URL de la requête:", request.path)
+            
+            # Afficher les informations de debug uniquement si les attributs existent
+            if hasattr(request, 'method'):
+                print("Méthode de la requête:", request.method)
+            if hasattr(request, 'path'):
+                print("URL de la requête:", request.path)
             
             token = request.headers.get("Authorization")
             if not token:
@@ -82,22 +86,58 @@ def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
     Args:
         allowed_roles: Liste des rôles autorisés (optionnel)
     """
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapper(*args, **kwargs):
-            # Trouver l'objet request dans les arguments
+    def decorator(func):
+        @wraps(func)
+        def wrapped_func(*args, **kwargs):
+            print("=== Début CheckRoleToken ===")
+            print(f"Fonction: {func.__name__}")
+            print(f"Args: {[type(arg).__name__ for arg in args]}")
+            print(f"Kwargs: {kwargs.keys()}")
+            
+            # Identifier l'objet request et self
+            self = None
             request = None
-            for arg in args:
-                if hasattr(arg, 'headers'):
-                    request = arg
-                    break
-                    
-            if request is None:
-                return ApiResponseClass.error("Objet request introuvable", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Cas spécial: si le 1er argument est Request directement (fonction interne)
+            if args and args[0].__class__.__name__ == 'Request':
+                request = args[0]
+                print("Cas spécial: premier argument est directement Request")
+            # Pour les vues de classe, le premier argument est self
+            elif args and hasattr(args[0], '__class__'):
+                self = args[0]
+                class_name = self.__class__.__name__
+                print(f"Vue: {class_name}")
                 
+                # Si c'est une vue Django REST Framework, la requête est le 2ème argument
+                if len(args) > 1 and hasattr(args[1], 'headers'):
+                    request = args[1]
+                # Sinon, elle peut être un attribut de l'objet self
+                elif hasattr(self, 'request'):
+                    request = self.request
+            else:
+                # Chercher la requête dans les arguments
+                for arg in args:
+                    if hasattr(arg, 'headers'):
+                        request = arg
+                        break
+            
+            # Si on n'a pas trouvé de requête, la fonction peut être 
+            # une fonction interne qui prend directement le request
+            # comme premier argument, et d'autres paramètres ensuite
+            if request is None and 'request' in kwargs:
+                request = kwargs['request']
+            
+            if request is None:
+                error_msg = "Objet request introuvable dans les arguments"
+                print(f"Types des arguments: {[type(arg) for arg in args]}")
+                print(error_msg)
+                return ApiResponseClass.error(error_msg, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
             try:
-                # Vérifier l'authentification JWT
+                # Authentification JWT
                 token = request.headers.get("Authorization")
+                print(f"Token reçu: {token[:20]}..." if token and len(token) > 20 else token)
+                
                 if not token:
                     return ApiResponseClass.error("Token manquant", status.HTTP_401_UNAUTHORIZED)
                     
@@ -106,47 +146,68 @@ def checkRoleToken(allowed_roles=[AccountRoleEnum.ADMINISTRATOR]):
                     return ApiResponseClass.error("Format du token invalide", status.HTTP_401_UNAUTHORIZED)
                 
                 token = parts[1]
+                print(f"Token extrait: {token[:20]}..." if len(token) > 20 else token)
                 
                 try:
+                    # Décoder le token
                     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                    print(f"Payload décodé: {payload}")
                     
                     if not payload.get('accountId'):
-                        return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
+                        return ApiResponseClass.error("Token invalide - ID manquant", status.HTTP_401_UNAUTHORIZED)
 
+                    accountId = payload['accountId']
+                    print(f"ID du compte extrait: {accountId}")
+                    
                     try:
-                        account = Account.objects.get(id=payload['accountId'])
-                        print(account.role)
+                        # Récupérer le compte
+                        account = Account.objects.get(id=accountId)
+                        print(f"Compte trouvé: {account.id}, Rôle: {account.role}")
+                        
+                        # Stocker l'utilisateur dans la requête pour un accès ultérieur
                         request.user = account
+                        
                         # L'administrateur a toujours accès
                         if account.role == AccountRoleEnum.ADMINISTRATOR.name:
-                            return view_func(*args, **kwargs)
-                    
-
+                            print("Accès accordé - Administrateur")
+                            return func(*args, **kwargs)
+                        
+                        # Pour les autres rôles, vérifier s'ils sont autorisés
+                        account_role = account.role
+                        
+                        # Convertir la liste des rôles autorisés en noms d'énumération
+                        if allowed_roles:
+                            allowed_roles_names = [role.name if hasattr(role, 'name') else role for role in allowed_roles]
+                            print(f"Rôles autorisés: {allowed_roles_names}")
+                            print(f"Rôle du compte: {account_role}")
+                            
+                            if account_role not in allowed_roles_names:
+                                print(f"Accès refusé - Rôle non autorisé: {account_role}")
+                                return ApiResponseClass.error("Accès non autorisé pour ce rôle", status.HTTP_403_FORBIDDEN)
+                        
+                        print("Accès accordé - Rôle autorisé")
+                        return func(*args, **kwargs)
                     
                     except Account.DoesNotExist:
+                        print(f"Compte non trouvé pour l'ID: {accountId}")
                         return ApiResponseClass.error("Compte non trouvé", status.HTTP_401_UNAUTHORIZED)
-
+                
                 except jwt.ExpiredSignatureError:
+                    print("Erreur - Token expiré")
                     return ApiResponseClass.error("Token expiré", status.HTTP_401_UNAUTHORIZED)
                 except jwt.InvalidTokenError as e:
+                    print(f"Erreur - Token invalide: {str(e)}")
                     return ApiResponseClass.error("Token invalide", status.HTTP_401_UNAUTHORIZED)
-
-                # Vérification du rôle
-                account_role = account.role
-                
-              
-                
-                # Vérifier si le rôle est autorisé
-                if allowed_roles:
-                    allowed_roles_names = [role.name if hasattr(role, 'name') else role for role in allowed_roles]
-                    if account_role not in allowed_roles_names:
-                        return ApiResponseClass.error("Accès non autorisé pour ce rôle", status.HTTP_403_FORBIDDEN)
-                
-                return view_func(*args, **kwargs)
                 
             except Exception as e:
-                print("ERREUR générale:", str(e))
-                return ApiResponseClass.error(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return wrapper
+                print(f"Erreur générale dans checkRoleToken: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return ApiResponseClass.error(f"Erreur d'authentification: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            finally:
+                print("=== Fin CheckRoleToken ===")
+                
+        return wrapped_func
     return decorator
 

@@ -13,7 +13,7 @@ from security.entities.accountTypeEnum import AccountRoleEnum
 from security.models import Student
 from security.decorators import jwt_required, checkRoleToken
 from security.serializers import StudentSerializer
-from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
+from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus,LessonStatus
 from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer, StudentAcademicUeRegistrationSerializer
 from ue.models import UE
 from section.models import Section
@@ -235,6 +235,39 @@ class LessonDetailView(APIView):
         except Exception as e:
             return ApiResponseClass.error(f"Erreur lors de la récupération de la séance: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @swagger_auto_schema(
+        operation_description="Met à jour une séance existante",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'lesson_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE, description='Date de la séance'),
+                'status': openapi.Schema(type=openapi.TYPE_STRING, description='Statut de la séance', enum=[status.value for status in LessonStatus])
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Séance mise à jour avec succès",
+                schema=LessonSerializer()
+            ),
+            400: openapi.Response(description="Données invalides"),
+            404: openapi.Response(description="Séance non trouvée")
+        }
+    )
+    @checkRoleToken([AccountRoleEnum.EDUCATOR, AccountRoleEnum.PROFESSOR])
+    def patch(self, request, pk):
+        try:
+            lesson = get_object_or_404(Lesson, pk=pk)
+            serializer = LessonSerializer(lesson, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return ApiResponseClass.success("Séance mise à jour avec succès", serializer.data)
+            return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la mise à jour de la séance: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class ResultListView(APIView):
     parser_classes = [JSONParser]
@@ -388,58 +421,54 @@ class ResultDetailView(APIView):
             500: openapi.Response(description="Erreur serveur")
         }
     )
+    @checkRoleToken([AccountRoleEnum.EDUCATOR, AccountRoleEnum.PROFESSOR])
     def patch(self, request, pk):
-        @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR])
-        def update_result(request, pk):
-            
-            try:
-                result = get_object_or_404(Result, pk=pk)
-                if request.data.get('approved', False)==True:
-                    serializer = ResultSerializer(result, data=request.data, partial=True)
-                    if serializer.is_valid():
-                        serializer.save()
-                        return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
-                if hasattr(result, 'approved') and result.approved:
-                    return ApiResponseClass.error(
-                        "Ce résultat a déjà été approuvé et ne peut être modifié",
-                        status.HTTP_403_FORBIDDEN
-                    )
-
-                result_value = request.data.get('result')
-               
-                period_value = request.data.get('period', result.period)
-
-                # Vérifier que result est dans la plage valide (period * 10)
-                max_result = period_value * 10
-                min_result = max_result / 2  # 50% pour réussir
-                
-                if not result.isExempt and result_value is not None:
-                    if not (min_result <= float(result_value) <= max_result):
-                        return ApiResponseClass.error(
-                            f"Le résultat doit être entre {min_result} et {max_result} ",
-                            status.HTTP_400_BAD_REQUEST
-                        )
-
-                # Déterminer si l'étudiant a réussi (success = True si result >= min_result)
-                
-                if not result.isExempt and result_value is not None:
-                    is_success = float(result_value) >= min_result
-                is_success = True    
-                # Mise à jour manuelle du champ success
-                request.data['success'] = is_success
-
+        try:
+            result = get_object_or_404(Result, pk=pk)
+            if request.data.get('approved', False)==True:
                 serializer = ResultSerializer(result, data=request.data, partial=True)
                 if serializer.is_valid():
-                    updated_result = serializer.save()
+                    serializer.save()
                     return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
-                return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
+            if hasattr(result, 'approved') and result.approved:
                 return ApiResponseClass.error(
-                    f"Erreur lors de la mise à jour: {str(e)}",
-                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                    "Ce résultat a déjà été approuvé et ne peut être modifié",
+                    status.HTTP_403_FORBIDDEN
                 )
-        
-        return update_result(request, pk)
+
+            result_value = request.data.get('result')
+           
+            period_value = request.data.get('period', result.period)
+
+            # Vérifier que result est dans la plage valide (period * 10)
+            max_result = period_value * 10
+            min_result = max_result / 2  # 50% pour réussir
+            
+            if not result.isExempt and result_value is not None:
+                if not (min_result <= float(result_value) <= max_result):
+                    return ApiResponseClass.error(
+                        f"Le résultat doit être entre {min_result} et {max_result} ",
+                        status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Déterminer si l'étudiant a réussi (success = True si result >= min_result)
+            
+            if not result.isExempt and result_value is not None:
+                is_success = float(result_value) >= min_result
+            is_success = True    
+            # Mise à jour manuelle du champ success
+            request.data['success'] = is_success
+
+            serializer = ResultSerializer(result, data=request.data, partial=True)
+            if serializer.is_valid():
+                updated_result = serializer.save()
+                return ApiResponseClass.success("Résultat mis à jour avec succès", serializer.data)
+            return ApiResponseClass.error(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la mise à jour: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AcademicUEGetById(APIView):
     parser_classes = [JSONParser]
@@ -794,10 +823,10 @@ class GetEligibleStudentsForAcademicUE(APIView):
                 page = 1
                 
             try:
-                page_size = int(request.query_params.get('page_size', '25'))
-                page_size = min(max(page_size, 1), 25)  # Limites : minimum 1, maximum 25
+                page_size = int(request.query_params.get('page_size', '10'))
+                page_size = min(max(page_size, 1), 10)  # Limites : minimum 1, maximum 25
             except ValueError:
-                page_size = 25
+                page_size = 10
 
             # Vérification de l'existence de l'UE académique
             academic_ue = get_object_or_404(AcademicUE, id=academicUeId)
@@ -833,12 +862,17 @@ class GetEligibleStudentsForAcademicUE(APIView):
             # Préparation des données des étudiants avec leur statut
             student_data = []
             for student in students:
-               
-                status = StudentAcademicUeRegistrationStatus.AP.value  # Par défaut, on considère que l'étudiant a tous les prérequis
                 
-                # Vérification des prérequis
+                status = StudentAcademicUeRegistrationStatus.AP.value  # Par défaut, on considère que l'étudiant a tous les prérequis
+                lessons=Lesson.objects.all().filter(academic_ue=academic_ue)
+                total_lessons_count=lessons.count()
+                finished_lessons_count=lessons.filter(status=LessonStatus.COMPLETED).count()
+                if(finished_lessons_count/total_lessons_count>=0.4):
+                    status=StudentAcademicUeRegistrationStatus.NP.value
+               
+                    # Vérification des prérequis
                 if academic_ue.ue.prerequisites.exists():
-                    for prerequisite in academic_ue.ue.prerequisites.all():
+                    for prerequisite in academic_ue.ue.prerequisites.all(): 
                         # Vérifier si l'étudiant a un résultat pour ce prérequis
                         has_result = Result.objects.filter(
                             academicsUE__ue=prerequisite,

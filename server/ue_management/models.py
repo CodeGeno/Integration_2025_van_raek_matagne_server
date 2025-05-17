@@ -19,7 +19,7 @@ class AcademicUE(models.Model):
     ue = models.ForeignKey(UE, on_delete=models.CASCADE, related_name='academic_ues')
     students = models.ManyToManyField(Student, related_name='enrolled_ues')
     professor = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name='taught_ues')
-
+   
     def __str__(self):
         return f"{self.ue.name} - {self.year}"
 
