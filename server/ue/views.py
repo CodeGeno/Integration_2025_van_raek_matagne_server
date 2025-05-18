@@ -69,17 +69,17 @@ class UECreationView(APIView):
                     error_details.append(f"{field}: {errors}")
             
             error_message = "Erreurs de validation :\n" + "\n".join(error_details)
-            return ApiResponseClass.error(error_message, status_code=status.HTTP_400_BAD_REQUEST)
+            return ApiResponseClass.error(error_message, status.HTTP_400_BAD_REQUEST)
         except ValueError as e:
-            return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+            return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status.HTTP_400_BAD_REQUEST)
         except TypeError as e:
-            return ApiResponseClass.error(f"Erreur de type: {str(e)}", status_code=status.HTTP_400_BAD_REQUEST)
+            return ApiResponseClass.error(f"Erreur de type: {str(e)}", status.HTTP_400_BAD_REQUEST)
         except IntegrityError as e:
-            return ApiResponseClass.error("Cette UE existe déjà dans la base de données", status_code=status.HTTP_409_CONFLICT)
+            return ApiResponseClass.error("Cette UE existe déjà dans la base de données", status.HTTP_409_CONFLICT)
         except PermissionError:
-            return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une UE", status_code=status.HTTP_403_FORBIDDEN)
+            return ApiResponseClass.error("Vous n'avez pas les droits nécessaires pour créer une UE", status.HTTP_403_FORBIDDEN)
         except Exception as e:
-            return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}", status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return ApiResponseClass.error(f"Une erreur inattendue s'est produite: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UpdateUEAndPrerequisitesView(APIView):
     @checkRoleToken()

@@ -8,10 +8,11 @@ from api.models import ApiResponseClass
 from django.db.models import Q
 from api.pagination import StandardResultsSetPagination
 from security.decorators import checkRoleToken
+from security.models import AccountRoleEnum
 # Create your views here.
 
 class SectionCreationView(APIView):
-    @checkRoleToken()
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request):
         try:
             print(request.data)
@@ -37,7 +38,7 @@ class SectionCreationView(APIView):
 
 
 class GetAllSectionsView(APIView):
-    @checkRoleToken()
+    @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def get(self, request):
         try:
             # Récupérer toutes les sections actives
@@ -78,7 +79,7 @@ class GetAllSectionsView(APIView):
 
 
 class DeleteSectionView(APIView):
-    @checkRoleToken()
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def delete(self, request, section_id):
         try:
             # Récupérer la section par son ID
@@ -97,7 +98,7 @@ class DeleteSectionView(APIView):
 
 
 class UpdateSectionView(APIView):
-    @checkRoleToken()
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def patch(self, request, section_id):
         try:
             # Récupérer la section par son ID
