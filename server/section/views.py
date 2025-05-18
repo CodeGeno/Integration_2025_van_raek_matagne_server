@@ -15,15 +15,10 @@ class SectionCreationView(APIView):
     @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def post(self, request):
         try:
-            print(request.data)
-            # Utiliser le sérialiseur standard puisque le modèle accepte maintenant les noms d'enum
             serializer = SectionCreationSerializer(data=request.data)
             if serializer.is_valid():
-                print(serializer.validated_data)
                 serializer.save()
-                print(serializer.data)
                 return ApiResponseClass.created("Section créée avec succès", serializer.data)
-            print("Erreurs de validation:", serializer.errors)
             return ApiResponseClass.error("Erreur lors de la création de la section", serializer.errors)
         except ValueError as e:
             return ApiResponseClass.error(f"Erreur de valeur: {str(e)}", status.HTTP_400_BAD_REQUEST)
@@ -38,7 +33,7 @@ class SectionCreationView(APIView):
 
 
 class GetAllSectionsView(APIView):
-    @checkRoleToken([AccountRoleEnum.EDUCATOR])
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR,AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
         try:
             # Récupérer toutes les sections actives
@@ -74,7 +69,6 @@ class GetAllSectionsView(APIView):
                 paginator.page.paginator.num_pages
             )
         except Exception as e:
-            print(e)
             return ApiResponseClass.error(f"Une erreur s'est produite lors de la récupération des sections: {str(e)}")
 
 
@@ -105,28 +99,16 @@ class UpdateSectionView(APIView):
             section = get_object_or_404(Section, id=section_id, isActive=True)
             
             # Afficher les données reçues pour le débogage
-            print("Données reçues dans la requête PATCH:", request.data)
-            
-            # Mettre à jour partiellement la section
             serializer = SectionSerializer(section, data=request.data, partial=True)
 
             if serializer.is_valid():
-                print("Données validées:", serializer.validated_data)
                 section = serializer.save()
-                print("Section après sauvegarde:", section.name, section.sectionType, section.sectionCategory)
                 return ApiResponseClass.success("Section mise à jour avec succès", serializer.data)
             
-            print("Erreurs de validation:", serializer.errors)
-            # Inclure les détails des erreurs dans la réponse
-            error_details = {}
-            for field, errors in serializer.errors.items():
-                error_details[field] = str(errors)
-            
-            return ApiResponseClass.error(f"Erreur lors de la mise à jour de la section: {error_details}")
+            return ApiResponseClass.error(f"Erreur lors de la mise à jour de la section: {serializer.errors}")
         except Section.DoesNotExist:
             return ApiResponseClass.error("La section demandée n'existe pas ou est désactivée", status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print("Exception lors de la mise à jour:", str(e))
             return ApiResponseClass.error(f"Une erreur s'est produite lors de la mise à jour de la section: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

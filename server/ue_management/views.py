@@ -69,6 +69,7 @@ class AcademicUEListView(APIView):
             )
         }
     )
+    @checkRoleToken([AccountRoleEnum.EDUCATOR,AccountRoleEnum.PROFESSOR,AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
         try:
             section_id = request.query_params.get('section_id')
@@ -111,7 +112,10 @@ class AcademicUEListView(APIView):
                         "L'année doit être un nombre entier",
                         status.HTTP_400_BAD_REQUEST
                     )
-                    
+        
+            if(request.user.role==AccountRoleEnum.PROFESSOR.name):
+                academic_ues = academic_ues.filter(professor_id=request.user.id)
+
             if active_only and active_only.lower() == 'true':
                 academic_ues = academic_ues.filter(ue__isActive=True)
                 
@@ -134,7 +138,7 @@ class AcademicUEListView(APIView):
             400: openapi.Response(description="Données invalides")
         }
     )
-    @checkRoleToken([])
+    @checkRoleToken()
     def post(self, request):
         
         try:
@@ -344,7 +348,6 @@ class ResultListView(APIView):
                 # Vérifier que result est dans la plage valide (period * 10)
                 max_result = period_value * 10
                 min_result = max_result / 2  # 50% pour réussir
-                print("min_result",min_result,"max_result",max_result)
                 
                 if not isExempt:
                     if not (min_result <= result_value <= max_result):
@@ -555,6 +558,7 @@ class SectionRegistration(APIView):
 
                 validation_results = []
                 already_registered_ues = []
+                available_courses_count = 0
 
                 for ue in ues:
                     academic_ue = ue.academic_ues.filter(year=year).first()
@@ -581,6 +585,18 @@ class SectionRegistration(APIView):
                     has_all_prerequisites = True
                     missing_prerequisites = []
                     
+                    lessons_total = Lesson.objects.filter(academic_ue=academic_ue).count()
+                    lessons_completed = Lesson.objects.filter(academic_ue=academic_ue, status=LessonStatus.COMPLETED).count()
+                    
+                    if lessons_total > 0 and (lessons_completed / lessons_total) >= 0.4:
+                        validation_results.append({
+                            'ue_name': ue.name,
+                            'has_all_prerequisites': False,
+                            'missing_prerequisites': ['40% des séances ont déjà été données'],
+                            'status': 'trop_tard'
+                        })
+                        continue
+
                     if ue.prerequisites.exists():
                         for prerequisite in ue.prerequisites.all():
                             try:
@@ -599,6 +615,9 @@ class SectionRegistration(APIView):
                                     status.HTTP_500_INTERNAL_SERVER_ERROR
                                 )
                     
+                    if has_all_prerequisites:
+                        available_courses_count += 1
+                    
                     validation_results.append({
                         'ue_name': ue.name,
                         'has_all_prerequisites': has_all_prerequisites,
@@ -614,6 +633,12 @@ class SectionRegistration(APIView):
                                 f"Erreur lors de l'inscription à l'UE {ue.name}: {str(e)}",
                                 status.HTTP_500_INTERNAL_SERVER_ERROR
                             )
+
+                if available_courses_count == 0:
+                    return ApiResponseClass.error(
+                        "Aucun cours disponible pour l'inscription. Vérifiez les prérequis et les dates limites.",
+                        status.HTTP_400_BAD_REQUEST
+                    )
 
                 message = "Inscription aux UEs de la section effectuée avec succès"
                 if already_registered_ues:

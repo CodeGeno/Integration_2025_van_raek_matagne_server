@@ -56,7 +56,6 @@ class AttendanceUpsertView(APIView):
                 lesson_ids = set()  # Pour stocker les IDs des leçons concernées
                 
                 for index, attendance_data in enumerate(request.data):
-                    print(f"Traitement des données pour l'index {index}:", attendance_data)
                     # Vérifier l'existence de la leçon et de l'étudiant
                     try:
                         lesson = Lesson.objects.get(id=attendance_data.get('lesson_id'))
@@ -83,7 +82,6 @@ class AttendanceUpsertView(APIView):
                     if serializer.is_valid():
                         serializers.append(serializer)
                     else:
-                        print(f"Erreurs de validation pour l'index {index}:", serializer.errors)
                         all_valid = False
                         validation_errors.append({
                             "index": index,
@@ -111,7 +109,6 @@ class AttendanceUpsertView(APIView):
                     })
         else:
             # Traiter une seule présence si les données ne sont pas une liste
-            print("Données reçues:", request.data)
             try:
                 lesson = Lesson.objects.get(id=request.data.get('lesson_id'))
                 student = Student.objects.get(id=request.data.get('student_id'))
@@ -132,7 +129,6 @@ class AttendanceUpsertView(APIView):
                 lesson.status = LessonStatus.COMPLETED
                 lesson.save()
                 return ApiResponseClass.created("Présence créée/mise à jour avec succès", serializer.data)
-            print("Erreurs de validation:", serializer.errors)
             return ApiResponseClass.error(serializer.errors)
     
 class AttendanceValidationView(APIView):
