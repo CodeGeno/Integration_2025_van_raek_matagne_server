@@ -26,8 +26,6 @@ class ApiResponseClass:
             "success": False,
             "message": message
         }
-        print(f"Type de status_code: {type(status_code)}, Valeur: {status_code}")
-        
         # Simplifions la logique en nous assurant que status_code est toujours un entier
         if isinstance(status_code, int):
             return Response(response, status=status_code)

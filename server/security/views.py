@@ -22,7 +22,7 @@ from .models import Employee
 import jwt
 from django.http import JsonResponse
 from .utils import normalize_name
-
+from django.contrib.auth.hashers import check_password
 # Fonction déplacée de decorators.py pour éviter l'importation circulaire
 def get_user_by_email(email):
     try:
@@ -41,9 +41,7 @@ class StudentCreationEndpoint(APIView):
     @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def post(self, request):
         try:
-            print("=== Début de la création d'un étudiant ===")
-            print("Données reçues:", request.data)
-            
+                    
             contactDetails_data = request.data.get('contactDetails')
             # La normalisation des noms et prénoms (firstName et lastName) sera effectuée 
             # automatiquement lors de la sauvegarde du modèle ContactDetails
@@ -68,11 +66,9 @@ class StudentCreationEndpoint(APIView):
             return ApiResponseClass.created("Compte étudiant créé avec succès", {**serializer.data, "password": password})
 
         except KeyError as e:
-            print("ERREUR: Champ manquant:", str(e))
             return ApiResponseClass.error(f"Champ requis manquant: {str(e)}", status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
-            print("ERREUR: Exception lors de la création:", str(e))
             return ApiResponseClass.error(f"Erreur lors de la création: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EmployeeCreationEndpoint(APIView):
@@ -121,12 +117,17 @@ class Login(APIView):
         try:
             user, user_type, user_role = get_user_by_email(email)
             
+            # Vérifier que le mot de passe hashé correspond
+            if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+                return ApiResponseClass.unauthorized("Identifiants invalides")
+            
+            
             # Récupérer le nom d'énumération du rôle
             role_name = get_enum_name_by_value(AccountRoleEnum, user_role)
             
             payload = {
                 'accountId': user.id,
-                'role': role_name  # Ajouter le rôle dans le token
+                'role': role_name 
             }
             jwt_token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
             
@@ -143,7 +144,6 @@ class StudentList(APIView):
     parser_classes = [JSONParser]
     @checkRoleToken([AccountRoleEnum.EDUCATOR])
     def get(self, request):
-        print(request.COOKIES)
         # Récupérer tous les étudiants
         students = Student.objects.all().order_by('id')
 
@@ -170,7 +170,7 @@ class EmployeeList(APIView):
     parser_classes = [JSONParser]
     @checkRoleToken([AccountRoleEnum.ADMINISTRATOR])
     def get(self, request):
-        print(request.COOKIES)
+        # Récupérer tous les employés
         employees = Employee.objects.all().order_by('id')
         
         search_query = request.query_params.get('search', None)
@@ -337,23 +337,17 @@ class ChangePassword(APIView):
             return ApiResponseClass.error(f"Erreur lors du changement de mot de passe: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def get_enum_name_by_value(enum_class, value):
-    print(f"Recherche de l'énumération pour la valeur: '{value}'")
     if value is None:
-        print("Valeur None, aucune énumération correspondante")
         return None
     
     # Si value est déjà un nom d'énumération, le retourner directement
     if value in enum_class.__members__:
-        print(f"La valeur '{value}' est déjà un nom d'énumération")
         return value
         
     # Sinon, chercher le nom correspondant à la valeur
     for name, member in enum_class.__members__.items():
-        print(f"Comparaison avec {name}: '{member.value}' == '{value}'")
         if member.value == value:
-            print(f"Correspondance trouvée: {name}")
             return name
     
-    print(f"Aucune correspondance trouvée pour '{value}'")
     return None
 

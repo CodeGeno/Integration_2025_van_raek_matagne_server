@@ -58,7 +58,6 @@ class SectionSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         # Cette méthode est appelée avant la validation
         # Inclure les données brutes pour débogage
-        print("Données brutes reçues:", data)
         return super().to_internal_value(data)
 
 class SectionCreationSerializer(serializers.ModelSerializer):
