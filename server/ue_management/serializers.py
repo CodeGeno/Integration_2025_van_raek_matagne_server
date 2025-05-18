@@ -112,3 +112,52 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         data['students'] = StudentSerializer(students, many=True).data
         
         return data
+    
+class AcademicUEDetailsSerializer(serializers.ModelSerializer):
+    lessons = LessonSerializer(many=True, read_only=True)
+    results = ResultSerializer(many=True, read_only=True)
+    students = StudentSerializer(many=True, read_only=True)
+    ue = UESerializer(read_only=True)
+    professor = EmployeeSerializer(read_only=True)
+    lessons_data = LessonSerializer(many=True, write_only=True, required=False)
+    ue_id = serializers.IntegerField(write_only=True)
+    professor_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    attendances = AttendanceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = AcademicUE
+        fields = ['id', 'year', 'start_date', 'end_date', 'ue', 'students', 'professor', 
+                    'lessons', 'results', 'lessons_data', 'ue_id', 'professor_id', 'attendances']
+
+    def create(self, validated_data):
+        lessons_data = validated_data.pop('lessons_data', [])
+        ue_id = validated_data.pop('ue_id')
+        professor_id = validated_data.pop('professor_id', None)
+        
+        try:
+            ue = UE.objects.get(id=ue_id)
+        except UE.DoesNotExist:
+            raise serializers.ValidationError(f"UE with id {ue_id} does not exist")
+
+        professor = None
+        if professor_id:
+            try:
+                professor = Employee.objects.get(id=professor_id)
+            except Employee.DoesNotExist:
+                raise serializers.ValidationError(f"Professor with id {professor_id} does not exist")
+            
+        academic_ue = AcademicUE.objects.create(
+            ue=ue,
+            professor=professor,
+            year=validated_data['year'],
+            start_date=validated_data['start_date'],
+            end_date=validated_data['end_date']
+        )
+        
+        for lesson_data in lessons_data:
+            Lesson.objects.create(
+                academic_ue=academic_ue,
+                lesson_date=lesson_data['lesson_date']
+            )
+            
+        return academic_ue

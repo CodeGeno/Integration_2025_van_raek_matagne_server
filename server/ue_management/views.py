@@ -14,7 +14,7 @@ from security.models import Student
 from security.decorators import jwt_required, checkRoleToken
 from security.serializers import StudentSerializer
 from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus,LessonStatus
-from ue_management.serializers import LessonSerializer, AcademicUESerializer, ResultSerializer, StudentAcademicUeRegistrationSerializer
+from ue_management.serializers import AcademicUEDetailsSerializer, LessonSerializer, AcademicUESerializer, ResultSerializer, StudentAcademicUeRegistrationSerializer
 from ue.models import UE
 from section.models import Section
 from section.serializers import SectionSerializer
@@ -979,5 +979,71 @@ class StudentAcademicUeRegistration(APIView):
         except Exception as e:
             return ApiResponseClass.error(
                 f"Erreur lors de l'inscription: {str(e)}", 
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class GetStudentAcademicUEDetails(APIView):
+    parser_classes = [JSONParser]
+
+    @swagger_auto_schema(
+        operation_description="Récupère les détails d'une UE académique pour un étudiant spécifique",
+        responses={
+            200: openapi.Response(
+                description="Détails de l'UE académique récupérés avec succès",
+                schema=AcademicUESerializer()
+            ),
+            404: openapi.Response(description="UE académique ou étudiant non trouvé")
+        }
+    )
+    def get(self, request, academic_ue_id, student_id):
+        try:
+            # Récupérer l'UE académique avec toutes ses relations
+            academic_ue = AcademicUE.objects.select_related(
+                'ue', 'professor'
+            ).prefetch_related(
+                'lessons', 'results'
+            ).get(id=academic_ue_id)
+
+            # Vérifier si l'étudiant est inscrit à cette UE
+            if not academic_ue.students.filter(id=student_id).exists():
+                return ApiResponseClass.error(
+                    "L'étudiant n'est pas inscrit à cette UE académique",
+                    status.HTTP_404_NOT_FOUND
+                )
+
+            # Récupérer les présences pour les leçons de cette UE
+            attendances = Attendance.objects.filter(
+                lesson__academic_ue=academic_ue,
+                student_id=student_id
+            ).select_related('lesson')
+
+            # Créer un dictionnaire avec les données de l'UE académique
+            data = {
+                'id': academic_ue.id,
+                'year': academic_ue.year,
+                'start_date': academic_ue.start_date,
+                'end_date': academic_ue.end_date,
+                'ue': academic_ue.ue,
+                'professor': academic_ue.professor,
+                'students': academic_ue.students.filter(id=student_id),
+                'lessons': academic_ue.lessons.all(),
+                'results': academic_ue.results.filter(student_id=student_id),
+            }
+
+            # Sérialiser les données
+            serializer = AcademicUEDetailsSerializer(data)
+            serializer.data.attendances = Attendance.objects.all().filter(lesson__academic_ue=academic_ue, student_id=student_id)
+            return ApiResponseClass.success(
+                "Détails de l'UE académique récupérés avec succès",
+                serializer.data
+            )
+        except AcademicUE.DoesNotExist:
+            return ApiResponseClass.error(
+                "UE académique non trouvée",
+                status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return ApiResponseClass.error(
+                f"Erreur lors de la récupération des détails de l'UE académique: {str(e)}",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )

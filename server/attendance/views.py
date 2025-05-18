@@ -15,6 +15,15 @@ from attendance.models import AttendanceStatusEnum
 from security.serializers import StudentSerializer, EmployeeSerializer
 from ue_management.serializers import AcademicUESerializer, LessonDetailSerializer
 from ue.serializers import UESerializer
+from django.db.models import Q
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from ue_management.models import Result, StudentAcademicUeRegistrationStatus
+from ue_management.serializers import ResultSerializer, StudentAcademicUeRegistrationSerializer
+from ue.models import UE
+from section.models import Section
+from section.serializers import SectionSerializer
+from django.db.models import Prefetch
 
 class AttendanceListByLessonIdView(APIView):
     @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.EDUCATOR])
@@ -222,3 +231,56 @@ class StudentAcademicUeDropoutView(APIView):
             return ApiResponseClass.error(f"UE académique avec l'ID {academicUeId} non trouvée", status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return ApiResponseClass.error(f"Une erreur s'est produite: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AttendanceSummaryView(APIView):
+    @checkRoleToken([AccountRoleEnum.PROFESSOR, AccountRoleEnum.EDUCATOR, AccountRoleEnum.ADMINISTRATOR])
+    def get(self, request, academic_ue_id):
+        try:
+            academic_ue = AcademicUE.objects.get(id=academic_ue_id)
+            lessons = Lesson.objects.filter(academic_ue=academic_ue).order_by('lesson_date')
+            
+            # Récupérer tous les étudiants inscrits à l'UE
+            students = academic_ue.students.all().select_related('contactDetails')
+
+            # Précharger les présences pour toutes les leçons
+            attendances = Attendance.objects.filter(
+                lesson__in=lessons,
+                student__in=students
+            ).select_related('student', 'lesson')
+
+            # Créer un dictionnaire pour accéder rapidement aux présences
+            attendance_dict = {}
+            for attendance in attendances:
+                if attendance.status:  # Ne garder que les présences avec un statut
+                    key = (attendance.student.id, attendance.lesson.lesson_date)
+                    attendance_dict[key] = attendance.status
+
+            # Construire le résumé
+            summary = []
+            for student in students:
+                student_attendances = []
+                for lesson in lessons:
+                    key = (student.id, lesson.lesson_date)
+                    status = attendance_dict.get(key)
+                    if status:  # Ne garder que les présences avec un statut
+                        student_attendances.append({
+                            'lesson_date': lesson.lesson_date.strftime('%Y-%m-%d'),
+                            'status': status
+                        })
+
+                if student_attendances:  # Ne garder que les étudiants qui ont au moins une présence
+                    summary.append({
+                        'student': {
+                            'id': student.id,
+                            'firstname': student.contactDetails.firstName,
+                            'lastname': student.contactDetails.lastName
+                        },
+                        'attendances': student_attendances
+                    })
+
+            return ApiResponseClass.success("Résumé des présences récupéré avec succès", summary)
+
+        except AcademicUE.DoesNotExist:
+            return ApiResponseClass.error("UE académique non trouvée")
+        except Exception as e:
+            return ApiResponseClass.error(f"Erreur lors de la récupération du résumé: {str(e)}")

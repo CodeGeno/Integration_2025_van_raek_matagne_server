@@ -8,7 +8,7 @@ from ue_management.views import (
     SectionRegistration,
     RegisterStudentsToAcademicUE, GetStudentResults,
     GetStudentAcademicUEs, GetEligibleStudentsForAcademicUE,
-    StudentAcademicUeRegistration
+    StudentAcademicUeRegistration, GetStudentAcademicUEDetails
 )
 
 urlpatterns = [
@@ -25,4 +25,5 @@ urlpatterns = [
     path('academic-ues/<int:academicUeId>/students/<int:studentId>/register/', StudentAcademicUeRegistration.as_view(), name='student-academic-ue-register'),
     path('academic-ues/student/<int:student_id>/', GetStudentAcademicUEs.as_view(), name='get-student-academic-ues'),
     path('academic-ues/registration/students/<int:academicUeId>/', GetEligibleStudentsForAcademicUE.as_view(), name='get-eligible-students'),
+    path('academic-ues/<int:academic_ue_id>/student/<int:student_id>/', GetStudentAcademicUEDetails.as_view(), name='get-student-academic-ue-details'),
 ]
