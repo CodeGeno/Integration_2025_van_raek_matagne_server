@@ -781,7 +781,9 @@ class GetStudentAcademicUEs(APIView):
         try:
             student = get_object_or_404(Student, id=student_id)
             academic_ues = AcademicUE.objects.filter(students=student)
+            print(academic_ues)
             serializer = AcademicUESerializer(academic_ues, many=True)
+    
             return ApiResponseClass.success(
                 "UE académiques de l'étudiant récupérées avec succès",
                 serializer.data

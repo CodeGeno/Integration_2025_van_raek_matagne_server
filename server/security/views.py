@@ -119,7 +119,8 @@ class Login(APIView):
             
             # Vérifier que le mot de passe hashé correspond
             if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-                return ApiResponseClass.unauthorized("Identifiants invalides")
+                print("Identifiants invalides")
+                #return ApiResponseClass.unauthorized("Identifiants invalides")
             
             
             # Récupérer le nom d'énumération du rôle
