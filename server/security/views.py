@@ -308,7 +308,7 @@ class EmployeeTeacherList(APIView):
 class ChangePassword(APIView):
     parser_classes = [JSONParser]
 
-    @jwt_required
+    @checkRoleToken([AccountRoleEnum.ADMINISTRATOR, AccountRoleEnum.EDUCATOR, AccountRoleEnum.STUDENT, AccountRoleEnum.PROFESSOR])
     def post(self, request):
         try:
             old_password = request.data.get('old_password')
@@ -318,11 +318,9 @@ class ChangePassword(APIView):
                 return ApiResponseClass.error("Les deux mots de passe sont requis", status.HTTP_400_BAD_REQUEST)
 
             # Récupérer l'utilisateur à partir du token
-            user_id = request.user_id
-            try:
-                user = Account.objects.get(id=user_id)
-            except Account.DoesNotExist:
-                return ApiResponseClass.error("Utilisateur non trouvé", status.HTTP_404_NOT_FOUND)
+            user = request.user
+            if not user or not hasattr(user, 'password'):
+                return ApiResponseClass.error("Utilisateur non trouvé ou invalide", status.HTTP_404_NOT_FOUND)
 
             # Vérifier l'ancien mot de passe
             if not bcrypt.checkpw(old_password.encode('utf-8'), user.password.encode('utf-8')):
@@ -335,6 +333,7 @@ class ChangePassword(APIView):
             return ApiResponseClass.success("Mot de passe modifié avec succès", None)
 
         except Exception as e:
+            print(f"Erreur détaillée: {str(e)}")  # Pour le débogage
             return ApiResponseClass.error(f"Erreur lors du changement de mot de passe: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def get_enum_name_by_value(enum_class, value):
