@@ -21,9 +21,9 @@ urlpatterns = [
     path('results/<int:pk>/', ResultDetailView.as_view(), name='result-detail'),
     path('academic-ues/<int:id>/', AcademicUEGetById.as_view(), name='academic-ue-get-by-id'),
     path('register-section/', SectionRegistration.as_view(), name='section-registration'),
+    path('academic-ues/student/details/<int:student_id>/', GetStudentAcademicUEDetails.as_view(), name='get-student-academic-ue-details'),
     path('academic-ues/<int:id>/register-students/', RegisterStudentsToAcademicUE.as_view(), name='register-students'),
     path('academic-ues/<int:academicUeId>/students/<int:studentId>/register/', StudentAcademicUeRegistration.as_view(), name='student-academic-ue-register'),
     path('academic-ues/student/<int:student_id>/', GetStudentAcademicUEs.as_view(), name='get-student-academic-ues'),
     path('academic-ues/registration/students/<int:academicUeId>/', GetEligibleStudentsForAcademicUE.as_view(), name='get-eligible-students'),
-    path('academic-ues/<int:academic_ue_id>/student/<int:student_id>/', GetStudentAcademicUEDetails.as_view(), name='get-student-academic-ue-details'),
 ]

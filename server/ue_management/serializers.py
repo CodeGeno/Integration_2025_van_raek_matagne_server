@@ -1,15 +1,14 @@
 from rest_framework import serializers
 
 from ue_management.models import Lesson, AcademicUE, Result, StudentAcademicUeRegistrationStatus
-from attendance.models import Attendance
-from attendance.serializers import AttendanceSerializer
+
 from ue.models import UE
 from security.models import Employee
 from security.entities.accountTypeEnum import AccountRoleEnum
 from security.serializers import StudentSerializer, EmployeeSerializer
 from ue.serializers import UESerializer
 from .models import StudentAcademicUeRegistration
-
+from attendance.serializers import AttendanceUpsertSerializer
 class LessonSerializer(serializers.ModelSerializer):
     lesson_date = serializers.DateField(input_formats=['%Y-%m-%d'])
 
@@ -24,7 +23,7 @@ class ResultSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Result
-        fields = ['id', 'academicsueId', 'result', 'period', 'studentid', 'success', 'isExempt', 'approved']
+        fields = '__all__'
 
 class AcademicUESerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
@@ -112,7 +111,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         data['students'] = StudentSerializer(students, many=True).data
         
         return data
-    
+
 class AcademicUEDetailsSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
     results = ResultSerializer(many=True, read_only=True)
@@ -122,7 +121,7 @@ class AcademicUEDetailsSerializer(serializers.ModelSerializer):
     lessons_data = LessonSerializer(many=True, write_only=True, required=False)
     ue_id = serializers.IntegerField(write_only=True)
     professor_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    attendances = AttendanceSerializer(many=True, read_only=True)
+    attendances = AttendanceUpsertSerializer(many=True, read_only=True)
 
     class Meta:
         model = AcademicUE

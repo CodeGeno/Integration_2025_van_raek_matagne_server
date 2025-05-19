@@ -781,7 +781,7 @@ class GetStudentAcademicUEs(APIView):
         try:
             student = get_object_or_404(Student, id=student_id)
             academic_ues = AcademicUE.objects.filter(students=student)
-            print(academic_ues)
+            
             serializer = AcademicUESerializer(academic_ues, many=True)
     
             return ApiResponseClass.success(
@@ -1013,64 +1013,55 @@ class GetStudentAcademicUEDetails(APIView):
     parser_classes = [JSONParser]
 
     @swagger_auto_schema(
-        operation_description="Récupère les détails d'une UE académique pour un étudiant spécifique",
+        operation_description="Récupère les détails de toutes les UEs académiques d'un étudiant",
         responses={
             200: openapi.Response(
-                description="Détails de l'UE académique récupérés avec succès",
-                schema=AcademicUESerializer()
+                description="Détails des UEs académiques récupérés avec succès",
+                schema=AcademicUESerializer(many=True)
             ),
-            404: openapi.Response(description="UE académique ou étudiant non trouvé")
+            404: openapi.Response(description="Étudiant non trouvé")
         }
     )
-    def get(self, request, academic_ue_id, student_id):
+    def get(self, request, student_id):
         try:
-            # Récupérer l'UE académique avec toutes ses relations
-            academic_ue = AcademicUE.objects.select_related(
+            # Vérifier l'existence de l'étudiant
+            student = get_object_or_404(Student, id=student_id)
+            
+            # Récupérer toutes les UEs académiques de l'étudiant avec leurs relations
+            academic_ues = AcademicUE.objects.select_related(
                 'ue', 'professor'
             ).prefetch_related(
-                'lessons', 'results'
-            ).get(id=academic_ue_id)
-
-            # Vérifier si l'étudiant est inscrit à cette UE
-            if not academic_ue.students.filter(id=student_id).exists():
-                return ApiResponseClass.error(
-                    "L'étudiant n'est pas inscrit à cette UE académique",
-                    status.HTTP_404_NOT_FOUND
+                'lessons', 'results', 'students'
+            ).filter(students=student)
+            
+            if not academic_ues.exists():
+                return ApiResponseClass.success(
+                    "L'étudiant n'est inscrit à aucune UE académique",
+                    []
                 )
 
-            # Récupérer les présences pour les leçons de cette UE
-            attendances = Attendance.objects.filter(
-                lesson__academic_ue=academic_ue,
-                student_id=student_id
-            ).select_related('lesson')
-
-            # Créer un dictionnaire avec les données de l'UE académique
-            data = {
-                'id': academic_ue.id,
-                'year': academic_ue.year,
-                'start_date': academic_ue.start_date,
-                'end_date': academic_ue.end_date,
-                'ue': academic_ue.ue,
-                'professor': academic_ue.professor,
-                'students': academic_ue.students.filter(id=student_id),
-                'lessons': academic_ue.lessons.all(),
-                'results': academic_ue.results.filter(student_id=student_id),
-            }
-
-            # Sérialiser les données
-            serializer = AcademicUEDetailsSerializer(data)
-            serializer.data.attendances = Attendance.objects.all().filter(lesson__academic_ue=academic_ue, student_id=student_id)
+            # Préparer les données pour chaque UE académique
+            result_data = []
+            for academic_ue in academic_ues:
+                academic_ue_lessons = Lesson.objects.filter(academic_ue=academic_ue)
+               
+               
+                # Sérialiser les données
+                serializer = AcademicUEDetailsSerializer(academic_ue)
+                data = serializer.data
+                data['attendances'] = Attendance.objects.filter(
+                    lesson__academic_ue=academic_ue, 
+                    student_id=student_id
+                ).values()
+                data['results'] = ResultSerializer(Result.objects.get(academicsUE=academic_ue,student=student)).data
+                result_data.append(data)
+            
             return ApiResponseClass.success(
-                "Détails de l'UE académique récupérés avec succès",
-                serializer.data
-            )
-        except AcademicUE.DoesNotExist:
-            return ApiResponseClass.error(
-                "UE académique non trouvée",
-                status.HTTP_404_NOT_FOUND
+                "Détails des UEs académiques récupérés avec succès",
+                result_data
             )
         except Exception as e:
             return ApiResponseClass.error(
-                f"Erreur lors de la récupération des détails de l'UE académique: {str(e)}",
+                f"Erreur lors de la récupération des détails des UEs académiques: {str(e)}",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
