@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-
+from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -35,7 +35,6 @@ SWAGGER_SETTINGS = {
             'type': 'basic'
         }
     },
-   
 }
 
 REDOC_SETTINGS = {
@@ -96,16 +95,15 @@ WSGI_APPLICATION = 'api.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'school_mgmt_92f',  # Nom de la base de données
-        'USER': 'user_4d3b7',       # Utilisateur
-        'PASSWORD': 'pwd_8f6a9c1',   # Mot de passe
-        'HOST': 'localhost',         # Hôte local, puisque PostgreSQL tourne dans un conteneur Docker
-        'PORT': '5439',              # Port exposé de PostgreSQL (mappé dans docker-compose.yml)
-    }
-}
-
+       'default': {
+           'ENGINE': 'django.db.backends.postgresql',
+           'NAME': config('DATABASE_NAME'),
+           'USER': config('DATABASE_USER'),
+           'PASSWORD': config('DATABASE_PASSWORD'),
+           'HOST': config('DATABASE_HOST'),
+           'PORT': config('DATABASE_PORT'),
+       }
+   }
 
 
 

@@ -13,8 +13,7 @@ build/
 venv_integration/
 venv_development/
 venv_production/
-.env
-.venv
+
 env.bak/
 venv.bak/
 

@@ -23,18 +23,19 @@ import jwt
 from django.http import JsonResponse
 from .utils import normalize_name
 from django.contrib.auth.hashers import check_password
-# Fonction déplacée de decorators.py pour éviter l'importation circulaire
+from decouple import config
+
 def get_user_by_email(email):
     try:
         user = Account.objects.get(email=email)
         if email.endswith("@efpl.be"):
             return user, "employee", getattr(user.employee, 'role', None) if hasattr(user, 'employee') else None
         else:
-            return user, "student", user.role  # Renvoyer le rôle défini dans l'objet User
+            return user, "student", user.role  
     except Account.DoesNotExist:
         raise Account.DoesNotExist("Aucun compte trouvé avec cet email")
 
-SECRET_KEY = "264acbe227697c2106fec96de2608ffa9696eea8d4bec4234a4d49e099decc7448daafbc7ba2f4d7b127460936a200f9885c220e81c929525e310084a7abea6fc523f0b2a2241bc91899f158f4c437b059141ffc24642dfa2254842ae8acab96460e05a6293aea8a31f44aa860470b8d972d5f4d1adec181bf79d77fe4a2eed0eed7189da484c5601591ca222b11ff0ca56fce663f838cd4f1a5cddcec78f3821ac0da9769b848147238928f24d59849c7bb8dbf12697d214f04d7fbd476f38c3b360895b1e09d9c0d1291fd61452efb0616034baf32492550b3067d0a3adf317a6808da8555f1cffca990c0452e97d48c8becb77ccdda4290146c49b1c5a8b5"
+SECRET_KEY = config('SECRET_KEY',default='')
 
 class StudentCreationEndpoint(APIView):
     parser_classes = [JSONParser]
@@ -119,8 +120,7 @@ class Login(APIView):
             
             # Vérifier que le mot de passe hashé correspond
             if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-                print("Identifiants invalides")
-                #return ApiResponseClass.unauthorized("Identifiants invalides")
+                return ApiResponseClass.unauthorized("Identifiants invalides")
             
             
             # Récupérer le nom d'énumération du rôle
@@ -273,8 +273,7 @@ class StudentEdit(APIView):
             
             if 'contactDetails' in data:
                 contact_data = data.get('contactDetails')
-                # La normalisation des noms et prénoms sera appliquée automatiquement 
-                # via la méthode save() du modèle ContactDetails
+            
                 for key, value in contact_data.items():
                     setattr(student.contactDetails, key, value)
                 student.contactDetails.save()
