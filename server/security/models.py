@@ -115,8 +115,6 @@ class Employee(Account):
             )
         ]
     )
-    
-
 
     def generateMatricule(self):
         genderDigit = '1' if self.contactDetails.gender == GenderEnum.MALE.value else '2'

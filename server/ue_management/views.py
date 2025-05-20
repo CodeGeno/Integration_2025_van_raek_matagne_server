@@ -152,8 +152,6 @@ class AcademicUEListView(APIView):
             return ApiResponseClass.error(f"Erreur lors de la création de l'UE académique: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-
 class AcademicUEDetailView(APIView):
     parser_classes = [JSONParser]
 

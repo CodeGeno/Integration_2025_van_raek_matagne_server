@@ -16,7 +16,6 @@ class SectionCategory(Enum):
     AGRONOMIC = "Agronomique"
     ARTISTIC = "Artistique"
 
-# Créer des tuples de choix pour les modèles Django
 # Utiliser les noms d'énumération (clés) comme valeurs stockées en DB
 SECTION_TYPE_CHOICES = [(type_enum.name, type_enum.value) for type_enum in SectionType]
 SECTION_CATEGORY_CHOICES = [(cat_enum.name, cat_enum.value) for cat_enum in SectionCategory]

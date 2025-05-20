@@ -10,7 +10,7 @@ CATEGORY_VALUE_TO_NAME = {cat_enum.value: cat_enum.name for cat_enum in SectionC
 
 class SectionTypeField(serializers.Field):
     def to_representation(self, value):
-        # Lors de la sérialisation, convertir le nom (MASTER) en valeur (Master) pour l'affichage
+        # Lors de la sérialisation, convertir le nom (EXEMPLE) en valeur (Exemple) pour l'affichage
         return TYPE_NAME_TO_VALUE.get(value, value)
 
     def to_internal_value(self, data):
@@ -25,7 +25,7 @@ class SectionTypeField(serializers.Field):
 
 class SectionCategoryField(serializers.Field):
     def to_representation(self, value):
-        # Lors de la sérialisation, convertir le nom (SOCIAL) en valeur (Sociale) pour l'affichage
+        # Lors de la sérialisation, convertir le nom (EXEMPLE) en valeur (Exemple) pour l'affichage
         return CATEGORY_NAME_TO_VALUE.get(value, value)
 
     def to_internal_value(self, data):

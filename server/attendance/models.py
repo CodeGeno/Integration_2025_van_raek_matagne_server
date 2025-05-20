@@ -3,7 +3,6 @@ from django.db import models
 from security.models import Student
 from ue_management.models import Lesson
 from enum import Enum
-# Create your models here.
 
 class AttendanceStatusEnum(Enum):
     P = "Présentiel"
